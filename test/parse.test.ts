@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseRelationFks, parseRuntimeDataModel, parseInlineSchema } from '../src/parse';
+import { parseRelationFks, parseRuntimeDataModel, parseInlineSchema } from '../src/v7/parse';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';

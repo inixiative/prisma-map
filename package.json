@@ -1,7 +1,7 @@
 {
   "name": "@inixiative/prisma-map",
   "version": "1.0.0",
-  "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma v7 generated client",
+  "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma generated client — supports v6 (schema.prisma) and v7 (runtimeDataModel)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,6 +19,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./v7": {
+      "types": "./dist/v7/index.d.ts",
+      "import": "./dist/v7/index.js",
+      "require": "./dist/v7/index.cjs"
+    },
+    "./v6": {
+      "types": "./dist/v6/index.d.ts",
+      "import": "./dist/v6/index.js",
+      "require": "./dist/v6/index.cjs"
     }
   },
   "devDependencies": {

@@ -1,4 +1,5 @@
 import { parseRuntimeDataModel, parseInlineSchema, parseRelationFks } from './parse';
+import { autoDetectV7Path } from '../autoDetect';
 import type {
   PrismaMap,
   ModelEntry,
@@ -6,36 +7,28 @@ import type {
   ScalarField,
   EnumField,
   RelationField,
-} from './types';
+} from '../types';
 
 /**
  * Build a complete PrismaMap from a Prisma v7 generated client directory.
  *
  * @param generatedClientPath - Absolute path to the generated client directory
  *   (the directory containing `internal/class.ts`).
- *   e.g. `/path/to/project/src/generated/client`
- *
- * @returns PrismaMap — all models with their fields, kinds, and FK info
+ *   If omitted, auto-detects by walking up from `process.cwd()`.
  *
  * @example
  * ```typescript
- * import { buildPrismaMap } from '@inixiative/prisma-map';
+ * import { buildPrismaMapV7 } from '@inixiative/prisma-map/v7';
  *
- * const map = buildPrismaMap('/path/to/generated/client');
- *
- * map.User.fields.email
- * // → { kind: 'scalar', type: 'String', isRequired: true, isList: false, isId: false }
- *
- * map.Post.fields.author
- * // → { kind: 'object', type: 'User', isList: false, isRequired: true, fromFields: ['authorId'], toFields: ['id'] }
- *
- * map.User.fields.posts
- * // → { kind: 'object', type: 'Post', isList: true, isRequired: false, fromFields: [], toFields: [] }
+ * const map = buildPrismaMapV7('/path/to/generated/client');
+ * // or auto-detect:
+ * const map = buildPrismaMapV7();
  * ```
  */
-export const buildPrismaMap = (generatedClientPath: string): PrismaMap => {
-  const dataModel = parseRuntimeDataModel(generatedClientPath);
-  const inlineSchema = parseInlineSchema(generatedClientPath);
+export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
+  const resolvedPath = generatedClientPath ?? autoDetectV7Path();
+  const dataModel = parseRuntimeDataModel(resolvedPath);
+  const inlineSchema = parseInlineSchema(resolvedPath);
   const relationFks = parseRelationFks(inlineSchema);
 
   const map: PrismaMap = {};
@@ -77,12 +70,7 @@ export const buildPrismaMap = (generatedClientPath: string): PrismaMap => {
       }
     }
 
-    const entry: ModelEntry = {
-      dbName: model.dbName,
-      fields,
-    };
-
-    map[modelName] = entry;
+    map[modelName] = { dbName: model.dbName, fields } satisfies ModelEntry;
   }
 
   return map;
