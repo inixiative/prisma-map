@@ -1,6 +1,6 @@
 {
   "name": "@inixiative/prisma-map",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma generated client — supports v6 (schema.prisma) and v7 (runtimeDataModel)",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/inixiative/prisma-map"
+    "url": "git+https://github.com/inixiative/prisma-map.git"
   },
   "publishConfig": {
     "access": "public"

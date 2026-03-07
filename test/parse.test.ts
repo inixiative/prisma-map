@@ -27,7 +27,9 @@ model User {
     const result = parseRelationFks(schema);
 
     expect(result.has('Post')).toBe(true);
-    const postFks = result.get('Post')!;
+    const postFks = result.get('Post');
+    expect(postFks).toBeDefined();
+    if (!postFks) throw new Error('Post FK map missing');
     expect(postFks.has('author')).toBe(true);
     expect(postFks.get('author')).toEqual({ fields: ['authorId'], references: ['id'] });
   });
@@ -93,7 +95,9 @@ model Post {
 }
 `;
     const result = parseRelationFks(schema);
-    const postFks = result.get('Post')!;
+    const postFks = result.get('Post');
+    expect(postFks).toBeDefined();
+    if (!postFks) throw new Error('Post FK map missing');
     expect(postFks.size).toBe(2);
     expect(postFks.get('author')).toEqual({ fields: ['authorId'], references: ['id'] });
     expect(postFks.get('editor')).toEqual({ fields: ['editorId'], references: ['id'] });
