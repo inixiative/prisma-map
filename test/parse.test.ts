@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'bun:test';
-import { parseRelationFks, parseRuntimeDataModel, parseInlineSchema } from '../src/v7/parse';
-import { writeFileSync, rmSync } from 'fs';
+import { describe, expect, it } from 'bun:test';
+import { rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { makeFixtureDir, makeClassTs } from './fixtures/v7';
+import { parseInlineSchema } from '../src/v7/inlineSchema';
+import { parseRelationFks } from '../src/v7/relationFks';
+import { parseRuntimeDataModel } from '../src/v7/runtimeDataModel';
+import { makeClassTs, makeFixtureDir } from './fixtures/v7';
 
 // ─── parseRelationFks (pure function — no file IO) ────────────────────────────
 
@@ -146,6 +148,52 @@ model Post {
       references: ['id'],
     });
   });
+
+  it('[P1] parses @relation when other attributes precede it on the same line', () => {
+    // Prisma allows @ignore, @map, etc. before @relation
+    const schema = `
+model Post {
+  id       String @id
+  authorId String
+  author   User   @ignore @relation(fields: [authorId], references: [id])
+}
+`;
+    const result = parseRelationFks(schema);
+    expect(result.get('Post')?.get('author')).toEqual({
+      fields: ['authorId'],
+      references: ['id'],
+    });
+  });
+
+  it('[P1] parses @relation with reversed argument order (references before fields)', () => {
+    const schema = `
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(references: [id], fields: [authorId])
+}
+`;
+    const result = parseRelationFks(schema);
+    expect(result.get('Post')?.get('author')).toEqual({
+      fields: ['authorId'],
+      references: ['id'],
+    });
+  });
+
+  it('[P2] parses model block with indented closing brace', () => {
+    const schema = `
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+  }
+`;
+    const result = parseRelationFks(schema);
+    expect(result.get('Post')?.get('author')).toEqual({
+      fields: ['authorId'],
+      references: ['id'],
+    });
+  });
 });
 
 // ─── parseRuntimeDataModel + parseInlineSchema (fixture-based) ───────────────
@@ -195,6 +243,20 @@ describe('parseInlineSchema', () => {
     writeFileSync(join(dir, 'internal', 'class.ts'), 'config.runtimeDataModel = JSON.parse("{}")');
     try {
       expect(() => parseInlineSchema(dir)).toThrow('inlineSchema');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
+  it('[P1] round-trips literal backslash+n (\\\\n) without corruption', () => {
+    // Schema contains @default("\\n") where \\n is a literal backslash followed by n.
+    // The sequential-replace approach corrupts this; JSON.parse handles it correctly.
+    const schema = 'model User {\n  id String @id\n  val String @default("\\\\n")\n}';
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs({}, schema));
+    try {
+      const result = parseInlineSchema(dir);
+      expect(result).toContain('@default("\\\\n")');
     } finally {
       rmSync(dir, { recursive: true });
     }

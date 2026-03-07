@@ -1,2 +1,3 @@
 export { buildPrismaMapV6 } from './build';
-export { parseSchemaText, buildFromSchemaFile } from './parse';
+export { buildFromSchemaFile } from './parseSchemaFile';
+export { parseSchemaText } from './parseSchemaText';

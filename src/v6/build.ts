@@ -1,6 +1,6 @@
 import { autoDetectV6Path } from '../autoDetect';
-import { buildFromSchemaFile } from './parse';
 import type { PrismaMap } from '../types';
+import { buildFromSchemaFile } from './parseSchemaFile';
 
 /**
  * Build a complete PrismaMap from a Prisma v6 generated client directory.

@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname, join } from 'path';
 
 const CANDIDATE_DIRS = [
   'node_modules/.prisma/client',

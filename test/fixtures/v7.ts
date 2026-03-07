@@ -1,6 +1,6 @@
 import { mkdirSync } from 'fs';
-import { join } from 'path';
 import { tmpdir } from 'os';
+import { join } from 'path';
 
 /** Create a temp directory with the internal/ sub-folder Prisma v7 expects. */
 export const makeFixtureDir = (): string => {

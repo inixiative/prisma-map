@@ -1,13 +1,15 @@
-import { parseRuntimeDataModel, parseInlineSchema, parseRelationFks } from './parse';
 import { autoDetectV7Path } from '../autoDetect';
 import type {
-  PrismaMap,
+  EnumField,
   ModelEntry,
   ModelField,
-  ScalarField,
-  EnumField,
+  PrismaMap,
   RelationField,
+  ScalarField,
 } from '../types';
+import { parseInlineSchema } from './inlineSchema';
+import { parseRelationFks } from './relationFks';
+import { parseRuntimeDataModel } from './runtimeDataModel';
 
 /**
  * Build a complete PrismaMap from a Prisma v7 generated client directory.

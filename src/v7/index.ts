@@ -1,2 +1,4 @@
 export { buildPrismaMapV7 } from './build';
-export { parseRuntimeDataModel, parseInlineSchema, parseRelationFks } from './parse';
+export { parseInlineSchema } from './inlineSchema';
+export { parseRelationFks } from './relationFks';
+export { parseRuntimeDataModel } from './runtimeDataModel';

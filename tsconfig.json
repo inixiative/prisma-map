@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["ESNext"],
+    "types": ["node"],
     "target": "ESNext",
     "module": "ESNext",
     "moduleDetection": "force",
@@ -12,5 +13,6 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true
-  }
+  },
+  "exclude": ["test/**"]
 }

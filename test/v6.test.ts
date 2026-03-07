@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSchemaText, buildFromSchemaFile } from '../src/v6/parse';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
+import { describe, expect, it } from 'bun:test';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { join } from 'path';
+import { buildFromSchemaFile } from '../src/v6/parseSchemaFile';
+import { parseSchemaText } from '../src/v6/parseSchemaText';
 
 const makeTempDir = (): string => {
   const dir = join(tmpdir(), `prisma-map-v6-test-${Date.now()}`);
@@ -23,10 +24,34 @@ model User {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.User.fields.id).toEqual({ kind: 'scalar', type: 'String', isRequired: true, isList: false, isId: true });
-    expect(map.User.fields.name).toEqual({ kind: 'scalar', type: 'String', isRequired: true, isList: false, isId: false });
-    expect(map.User.fields.email).toEqual({ kind: 'scalar', type: 'String', isRequired: false, isList: false, isId: false });
-    expect(map.User.fields.age).toEqual({ kind: 'scalar', type: 'Int', isRequired: false, isList: false, isId: false });
+    expect(map.User.fields.id).toEqual({
+      kind: 'scalar',
+      type: 'String',
+      isRequired: true,
+      isList: false,
+      isId: true,
+    });
+    expect(map.User.fields.name).toEqual({
+      kind: 'scalar',
+      type: 'String',
+      isRequired: true,
+      isList: false,
+      isId: false,
+    });
+    expect(map.User.fields.email).toEqual({
+      kind: 'scalar',
+      type: 'String',
+      isRequired: false,
+      isList: false,
+      isId: false,
+    });
+    expect(map.User.fields.age).toEqual({
+      kind: 'scalar',
+      type: 'Int',
+      isRequired: false,
+      isList: false,
+      isId: false,
+    });
   });
 
   it('parses list scalar fields', () => {
@@ -37,7 +62,13 @@ model Post {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.Post.fields.tags).toEqual({ kind: 'scalar', type: 'String', isRequired: true, isList: true, isId: false });
+    expect(map.Post.fields.tags).toEqual({
+      kind: 'scalar',
+      type: 'String',
+      isRequired: true,
+      isList: true,
+      isId: false,
+    });
   });
 
   it('parses Json scalar type', () => {
@@ -48,7 +79,13 @@ model User {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.User.fields.metadata).toEqual({ kind: 'scalar', type: 'Json', isRequired: false, isList: false, isId: false });
+    expect(map.User.fields.metadata).toEqual({
+      kind: 'scalar',
+      type: 'Json',
+      isRequired: false,
+      isList: false,
+      isId: false,
+    });
   });
 
   it('parses DateTime scalar type', () => {
@@ -60,7 +97,13 @@ model Post {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.Post.fields.createdAt).toEqual({ kind: 'scalar', type: 'DateTime', isRequired: true, isList: false, isId: false });
+    expect(map.Post.fields.createdAt).toEqual({
+      kind: 'scalar',
+      type: 'DateTime',
+      isRequired: true,
+      isList: false,
+      isId: false,
+    });
   });
 });
 
@@ -174,7 +217,12 @@ model User {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.User.fields.role).toEqual({ kind: 'enum', type: 'UserRole', isRequired: true, isList: false });
+    expect(map.User.fields.role).toEqual({
+      kind: 'enum',
+      type: 'UserRole',
+      isRequired: true,
+      isList: false,
+    });
   });
 
   it('parses optional enum field', () => {
@@ -190,7 +238,12 @@ model Post {
 }
 `;
     const map = parseSchemaText(schema);
-    expect(map.Post.fields.status).toEqual({ kind: 'enum', type: 'Status', isRequired: false, isList: false });
+    expect(map.Post.fields.status).toEqual({
+      kind: 'enum',
+      type: 'Status',
+      isRequired: false,
+      isList: false,
+    });
   });
 });
 
@@ -266,6 +319,43 @@ model User {
     const map = parseSchemaText(schema);
     expect(map.User.fields.id).toMatchObject({ kind: 'scalar', isId: true });
     expect(map.User.fields.name).toMatchObject({ kind: 'scalar', isId: false });
+  });
+});
+
+describe('parseSchemaText — edge cases', () => {
+  it('[P2] parses model block with indented closing brace', () => {
+    const schema = `
+model User {
+  id   String @id
+  name String
+  }
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User).toBeDefined();
+    expect(map.User.fields.id).toMatchObject({ kind: 'scalar', isId: true });
+    expect(map.User.fields.name).toMatchObject({ kind: 'scalar' });
+  });
+
+  it('[P1] parses @relation with extra attribute before it on same line', () => {
+    const schema = `
+model Post {
+  id       String @id
+  authorId String
+  author   User   @ignore @relation(fields: [authorId], references: [id])
+}
+
+model User {
+  id    String @id
+  posts Post[]
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.Post.fields.author).toMatchObject({
+      kind: 'object',
+      type: 'User',
+      fromFields: ['authorId'],
+      toFields: ['id'],
+    });
   });
 });
 

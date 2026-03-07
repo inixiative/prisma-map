@@ -20,7 +20,7 @@ export type RelationField = {
   isRequired: boolean;
   relationName?: string;
   fromFields: string[]; // FK fields on THIS model (empty [] for back-relations)
-  toFields: string[];   // Referenced fields on target model (empty [] for back-relations)
+  toFields: string[]; // Referenced fields on target model (empty [] for back-relations)
 };
 
 export type ModelField = ScalarField | EnumField | RelationField;

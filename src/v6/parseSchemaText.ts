@@ -1,27 +1,19 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import type {
-  PrismaMap,
+  EnumField,
   ModelEntry,
   ModelField,
-  ScalarField,
-  EnumField,
+  PrismaMap,
   RelationField,
+  ScalarField,
 } from '../types';
-import { parseRelationFks } from '../v7/parse';
-
-export const buildFromSchemaFile = (generatedClientPath: string): PrismaMap => {
-  const schemaPath = join(generatedClientPath, 'schema.prisma');
-  const schema = readFileSync(schemaPath, 'utf-8');
-  return parseSchemaText(schema);
-};
+import { parseRelationFks } from '../v7/relationFks';
 
 /**
  * Parse a Prisma schema string into a PrismaMap.
  *
  * Classifies fields as scalar/enum/object by scanning all model and enum
  * declarations first, then parsing each model's fields line by line.
- * FK info is extracted via the same @relation regex used for v7.
+ * FK info is extracted via the same @relation parser used for v7.
  */
 export const parseSchemaText = (schema: string): PrismaMap => {
   const modelNames = new Set<string>();
@@ -33,10 +25,7 @@ export const parseSchemaText = (schema: string): PrismaMap => {
   const relationFks = parseRelationFks(schema);
   const map: PrismaMap = {};
 
-  const modelRegex = /model\s+(\w+)\s*\{([\s\S]*?)\n\}/g;
-  let modelMatch: RegExpExecArray | null;
-
-  while ((modelMatch = modelRegex.exec(schema)) !== null) {
+  for (const modelMatch of schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\s*\}/g)) {
     const modelName = modelMatch[1];
     const modelBody = modelMatch[2];
     const fields: Record<string, ModelField> = {};
@@ -49,7 +38,10 @@ export const parseSchemaText = (schema: string): PrismaMap => {
     // Mark fields that are part of a composite PK (@@id([field1, field2]))
     const compoundIdMatch = modelBody.match(/@@id\s*\(\s*\[([^\]]+)\]/);
     if (compoundIdMatch) {
-      for (const name of compoundIdMatch[1].split(',').map(s => s.trim()).filter(Boolean)) {
+      for (const name of compoundIdMatch[1]
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         const f = fields[name];
         if (f?.kind === 'scalar') fields[name] = { ...f, isId: true };
       }
@@ -82,7 +74,7 @@ const parseFieldLine = (
   const rest = match[5] ?? '';
   const isRequired = !optional;
   const isList = !!list;
-  const isId = /\@id\b/.test(rest);
+  const isId = /@id\b/.test(rest);
 
   if (modelNames.has(typeName)) {
     const fkMapping = relationFks.get(modelName)?.get(fieldName);
