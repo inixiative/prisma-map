@@ -12,6 +12,8 @@ export const parseRuntimeDataModel = (generatedClientPath: string): RuntimeDataM
     );
   }
 
-  const jsonString = match[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  // Use JSON.parse to decode the outer string layer, then parse the inner JSON.
+  // Manual sequential replaces corrupt escape sequences like \n, \t, \uXXXX.
+  const jsonString = JSON.parse(`"${match[1]}"`);
   return JSON.parse(jsonString) as RuntimeDataModel;
 };

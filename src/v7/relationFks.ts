@@ -24,11 +24,11 @@ export const parseRelationFks = (schema: string): Map<string, Map<string, Relati
     const modelBody = modelMatch[2];
     const fieldFks = new Map<string, RelationFkMapping>();
 
-    // Step 1: find lines with @relation(...) — capture fieldName and the full args string.
+    // Step 1: find field declarations with @relation(...) — capture fieldName and args string.
     // [^\n]*? allows any attributes between the type and @relation (e.g. @ignore, @map).
-    // @relation args never contain nested parens, so [^)]* safely captures the full arg list.
+    // [\s\S]*? allows multi-line @relation args (Prisma formatter wraps long argument lists).
     for (const relMatch of modelBody.matchAll(
-      /(\w+)[^\S\n]+\w+\??(?:\[\])?[^\n]*?@relation\s*\(([^)]*)\)/g,
+      /(\w+)[^\S\n]+\w+\??(?:\[\])?[^\n]*?@relation\s*\(([\s\S]*?)\)/g,
     )) {
       const fieldName = relMatch[1];
       const args = relMatch[2];

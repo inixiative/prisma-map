@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { buildPrismaMapV7 } from '../src/v7/build';
 import { parseInlineSchema } from '../src/v7/inlineSchema';
 import { parseRelationFks } from '../src/v7/relationFks';
 import { parseRuntimeDataModel } from '../src/v7/runtimeDataModel';
@@ -257,6 +258,154 @@ describe('parseInlineSchema', () => {
     try {
       const result = parseInlineSchema(dir);
       expect(result).toContain('@default("\\\\n")');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+});
+
+// ─── buildPrismaMapV7 end-to-end ─────────────────────────────────────────────
+
+describe('buildPrismaMapV7', () => {
+  it('[P2] end-to-end: builds PrismaMap with scalar and relation fields', () => {
+    const runtimeDataModel = {
+      models: {
+        User: {
+          dbName: null,
+          fields: [
+            {
+              name: 'id',
+              kind: 'scalar',
+              type: 'String',
+              isRequired: true,
+              isList: false,
+              isId: true,
+            },
+            {
+              name: 'posts',
+              kind: 'object',
+              type: 'Post',
+              isRequired: true,
+              isList: true,
+              relationName: null,
+            },
+          ],
+        },
+        Post: {
+          dbName: null,
+          fields: [
+            {
+              name: 'id',
+              kind: 'scalar',
+              type: 'String',
+              isRequired: true,
+              isList: false,
+              isId: true,
+            },
+            {
+              name: 'authorId',
+              kind: 'scalar',
+              type: 'String',
+              isRequired: true,
+              isList: false,
+              isId: false,
+            },
+            {
+              name: 'author',
+              kind: 'object',
+              type: 'User',
+              isRequired: true,
+              isList: false,
+              relationName: null,
+            },
+          ],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const inlineSchema = `
+model User {
+  id    String @id
+  posts Post[]
+}
+
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+`;
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, inlineSchema));
+
+    try {
+      const map = buildPrismaMapV7(dir);
+      expect(map.User.fields.id).toMatchObject({ kind: 'scalar', type: 'String', isId: true });
+      expect(map.User.fields.posts).toMatchObject({
+        kind: 'object',
+        type: 'Post',
+        isList: true,
+        fromFields: [],
+        toFields: [],
+      });
+      expect(map.Post.fields.author).toMatchObject({
+        kind: 'object',
+        type: 'User',
+        fromFields: ['authorId'],
+        toFields: ['id'],
+      });
+      expect(map.Post.fields.authorId).toMatchObject({ kind: 'scalar', type: 'String' });
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
+  it('[P1] parseRelationFks: handles multi-line @relation args', () => {
+    const schema = `
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(
+    fields: [authorId],
+    references: [id],
+    onDelete: Cascade
+  )
+}
+`;
+    const result = parseRelationFks(schema);
+    expect(result.get('Post')?.get('author')).toEqual({
+      fields: ['authorId'],
+      references: ['id'],
+    });
+  });
+
+  it('[P0] parseRuntimeDataModel round-trips escape sequences correctly', () => {
+    // Ensures \\n, \\t, \\uXXXX etc. in dbName/field strings survive the decode
+    const runtimeDataModel = {
+      models: {
+        MyModel: {
+          dbName: 'my\\ntable', // literal backslash+n in table name
+          fields: [
+            {
+              name: 'id',
+              kind: 'scalar',
+              type: 'String',
+              isRequired: true,
+              isList: false,
+              isId: true,
+            },
+          ],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, ''));
+    try {
+      const result = parseRuntimeDataModel(dir);
+      expect(result.models.MyModel.dbName).toBe('my\\ntable');
     } finally {
       rmSync(dir, { recursive: true });
     }
