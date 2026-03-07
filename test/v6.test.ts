@@ -237,6 +237,38 @@ model Post {
   });
 });
 
+// ─── parseSchemaText — compound PK ──────────────────────────────────────────
+
+describe('parseSchemaText — compound PK (@@id)', () => {
+  it('marks constituent fields isId: true', () => {
+    const schema = `
+model PostCategory {
+  postId     String
+  categoryId String
+  note       String?
+
+  @@id([postId, categoryId])
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.PostCategory.fields.postId).toMatchObject({ kind: 'scalar', isId: true });
+    expect(map.PostCategory.fields.categoryId).toMatchObject({ kind: 'scalar', isId: true });
+    expect(map.PostCategory.fields.note).toMatchObject({ kind: 'scalar', isId: false });
+  });
+
+  it('single @id field still works alongside @@id-free models', () => {
+    const schema = `
+model User {
+  id   String @id
+  name String
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.id).toMatchObject({ kind: 'scalar', isId: true });
+    expect(map.User.fields.name).toMatchObject({ kind: 'scalar', isId: false });
+  });
+});
+
 // ─── buildFromSchemaFile ─────────────────────────────────────────────────────
 
 describe('buildFromSchemaFile', () => {

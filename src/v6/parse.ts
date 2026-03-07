@@ -46,6 +46,15 @@ export const parseSchemaText = (schema: string): PrismaMap => {
       if (parsed) fields[parsed.name] = parsed.field;
     }
 
+    // Mark fields that are part of a composite PK (@@id([field1, field2]))
+    const compoundIdMatch = modelBody.match(/@@id\s*\(\s*\[([^\]]+)\]/);
+    if (compoundIdMatch) {
+      for (const name of compoundIdMatch[1].split(',').map(s => s.trim()).filter(Boolean)) {
+        const f = fields[name];
+        if (f?.kind === 'scalar') fields[name] = { ...f, isId: true };
+      }
+    }
+
     const dbNameMatch = modelBody.match(/@@map\("([^"]+)"\)/);
     map[modelName] = { dbName: dbNameMatch?.[1] ?? null, fields } satisfies ModelEntry;
   }
