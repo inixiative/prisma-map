@@ -19,13 +19,13 @@ export const parseSchemaText = (schema: string): PrismaMap => {
   const modelNames = new Set<string>();
   const enumNames = new Set<string>();
 
-  for (const m of schema.matchAll(/^model\s+(\w+)\s*\{/gm)) modelNames.add(m[1]);
-  for (const m of schema.matchAll(/^enum\s+(\w+)\s*\{/gm)) enumNames.add(m[1]);
+  for (const m of schema.matchAll(/^\s*model\s+(\w+)\s*\{/gm)) modelNames.add(m[1]);
+  for (const m of schema.matchAll(/^\s*enum\s+(\w+)\s*\{/gm)) enumNames.add(m[1]);
 
   const relationFks = parseRelationFks(schema);
   const map: PrismaMap = {};
 
-  for (const modelMatch of schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\s*\}/g)) {
+  for (const modelMatch of schema.matchAll(/^\s*model\s+(\w+)\s*\{([\s\S]*?)^\s*\}/gm)) {
     const modelName = modelMatch[1];
     const modelBody = modelMatch[2];
     const fields: Record<string, ModelField> = {};

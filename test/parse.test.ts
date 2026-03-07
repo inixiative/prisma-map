@@ -195,6 +195,28 @@ model Post {
       references: ['id'],
     });
   });
+
+  it('[P1] ignores commented-out @relation lines', () => {
+    const schema = `
+model User {
+  id    String @id
+  posts Post[]
+  // posts Post[] @relation(fields: [id], references: [id])
+}
+
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+`;
+    const result = parseRelationFks(schema);
+    expect(result.has('User')).toBe(false);
+    expect(result.get('Post')?.get('author')).toEqual({
+      fields: ['authorId'],
+      references: ['id'],
+    });
+  });
 });
 
 // ─── parseRuntimeDataModel + parseInlineSchema (fixture-based) ───────────────

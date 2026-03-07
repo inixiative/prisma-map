@@ -357,6 +357,56 @@ model User {
       toFields: ['id'],
     });
   });
+
+  it('[P1] treats indented model/enum declarations as model+enum types', () => {
+    const schema = `
+  enum UserRole {
+    ADMIN
+  }
+
+  model User {
+    id   String   @id
+    role UserRole
+  }
+
+  model Post {
+    id       String @id
+    authorId String
+    author   User   @relation(fields: [authorId], references: [id])
+  }
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.role).toMatchObject({ kind: 'enum', type: 'UserRole' });
+    expect(map.Post.fields.author).toMatchObject({
+      kind: 'object',
+      type: 'User',
+      fromFields: ['authorId'],
+      toFields: ['id'],
+    });
+  });
+
+  it('[P1] ignores commented-out @relation lines', () => {
+    const schema = `
+model User {
+  id    String @id
+  posts Post[]
+  // posts Post[] @relation(fields: [id], references: [id])
+}
+
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.posts).toMatchObject({
+      kind: 'object',
+      type: 'Post',
+      fromFields: [],
+      toFields: [],
+    });
+  });
 });
 
 // ─── buildFromSchemaFile ─────────────────────────────────────────────────────

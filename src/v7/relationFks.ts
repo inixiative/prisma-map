@@ -19,9 +19,9 @@ export const parseRelationFks = (schema: string): Map<string, Map<string, Relati
   const result = new Map<string, Map<string, RelationFkMapping>>();
 
   // Use \n} as end delimiter to avoid matching {} inside @default("{}")
-  for (const modelMatch of schema.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\s*\}/g)) {
+  for (const modelMatch of schema.matchAll(/^\s*model\s+(\w+)\s*\{([\s\S]*?)^\s*\}/gm)) {
     const modelName = modelMatch[1];
-    const modelBody = modelMatch[2];
+    const modelBody = modelMatch[2].replace(/^[^\S\n]*\/\/.*$/gm, '');
     const fieldFks = new Map<string, RelationFkMapping>();
 
     // Step 1: find field declarations with @relation(...) — capture fieldName and args string.
