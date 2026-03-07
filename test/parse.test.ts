@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'bun:test';
 import { parseRelationFks, parseRuntimeDataModel, parseInlineSchema } from '../src/v7/parse';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
+import { makeFixtureDir, makeClassTs } from './fixtures/v7';
 
 // ─── parseRelationFks (pure function — no file IO) ────────────────────────────
 
@@ -149,29 +149,6 @@ model Post {
 });
 
 // ─── parseRuntimeDataModel + parseInlineSchema (fixture-based) ───────────────
-
-const makeFixtureDir = () => {
-  const dir = join(tmpdir(), `prisma-map-test-${Date.now()}`);
-  mkdirSync(join(dir, 'internal'), { recursive: true });
-  return dir;
-};
-
-const makeClassTs = (runtimeDataModel: object, inlineSchema: string): string => {
-  const jsonStr = JSON.stringify(JSON.stringify(runtimeDataModel))
-    .slice(1, -1); // strip outer quotes: JSON.stringify already gives us escaped string
-  const schemaEscaped = inlineSchema
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n');
-
-  return `
-// Prisma generated client stub
-config.runtimeDataModel = JSON.parse("${jsonStr}")
-const x = {
-  "inlineSchema": "${schemaEscaped}",
-};
-`;
-};
 
 describe('parseRuntimeDataModel', () => {
   it('extracts runtimeDataModel JSON', () => {

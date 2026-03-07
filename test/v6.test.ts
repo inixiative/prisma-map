@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-const makeTempDir = () => {
+const makeTempDir = (): string => {
   const dir = join(tmpdir(), `prisma-map-v6-test-${Date.now()}`);
   mkdirSync(dir, { recursive: true });
   return dir;
