@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { rmSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { buildPrismaMapV7 } from '../src/v7/build';
 import { parseInlineSchema } from '../src/v7/inlineSchema';
+import { parseEnumValues } from '../src/v7/parseEnumValues';
 import { parseRelationFks } from '../src/v7/relationFks';
 import { parseRuntimeDataModel } from '../src/v7/runtimeDataModel';
 import { makeClassTs, makeFixtureDir } from './fixtures/v7';
@@ -431,5 +432,151 @@ model Post {
     } finally {
       rmSync(dir, { recursive: true });
     }
+  });
+
+  it('builds enum fields with values from inlineSchema', () => {
+    const runtimeDataModel = {
+      models: {
+        User: {
+          dbName: null,
+          fields: [
+            {
+              name: 'id',
+              kind: 'scalar',
+              type: 'String',
+              isRequired: true,
+              isList: false,
+              isId: true,
+            },
+            {
+              name: 'role',
+              kind: 'enum',
+              type: 'UserRole',
+              isRequired: true,
+              isList: false,
+              isId: false,
+            },
+          ],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const inlineSchema = `
+enum UserRole {
+  ADMIN
+  USER
+  GUEST
+}
+
+model User {
+  id   String   @id
+  role UserRole
+}
+`;
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, inlineSchema));
+    try {
+      const map = buildPrismaMapV7(dir);
+      const roleField = map.User.fields.role;
+      expect(roleField.kind).toBe('enum');
+      if (roleField.kind === 'enum') {
+        expect(roleField.type).toBe('UserRole');
+        expect(roleField.values).toEqual(['ADMIN', 'USER', 'GUEST']);
+      }
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+});
+
+// ─── parseEnumValues ─────────────────────────────────────────────────────────
+
+describe('parseEnumValues', () => {
+  it('parses basic enum values', () => {
+    const schema = `
+enum UserRole {
+  ADMIN
+  USER
+  GUEST
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('UserRole')).toEqual(['ADMIN', 'USER', 'GUEST']);
+  });
+
+  it('strips @map annotations from values', () => {
+    const schema = `
+enum Color {
+  RED   @map("red")
+  GREEN @map("green")
+  BLUE
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('Color')).toEqual(['RED', 'GREEN', 'BLUE']);
+  });
+
+  it('strips inline comments', () => {
+    const schema = `
+enum Status {
+  ACTIVE   // currently active
+  INACTIVE // no longer active
+  PENDING  // awaiting approval
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('Status')).toEqual(['ACTIVE', 'INACTIVE', 'PENDING']);
+  });
+
+  it('skips @@map block attributes', () => {
+    const schema = `
+enum Priority {
+  LOW
+  HIGH
+  @@map("priority")
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('Priority')).toEqual(['LOW', 'HIGH']);
+  });
+
+  it('parses multiple enums', () => {
+    const schema = `
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('Role')).toEqual(['ADMIN', 'USER']);
+    expect(result.get('Status')).toEqual(['ACTIVE', 'INACTIVE']);
+  });
+
+  it('returns empty map for schema with no enums', () => {
+    const schema = `
+model User {
+  id String @id
+}
+`;
+    const result = parseEnumValues(schema);
+    expect(result.size).toBe(0);
+  });
+
+  it('handles indented enum declarations', () => {
+    const schema = `
+  enum Tier {
+    FREE
+    PRO
+    ENTERPRISE
+  }
+`;
+    const result = parseEnumValues(schema);
+    expect(result.get('Tier')).toEqual(['FREE', 'PRO', 'ENTERPRISE']);
   });
 });

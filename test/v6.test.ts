@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { buildFromSchemaFile } from '../src/v6/parseSchemaFile';
 import { parseSchemaText } from '../src/v6/parseSchemaText';
 
@@ -222,6 +222,7 @@ model User {
       type: 'UserRole',
       isRequired: true,
       isList: false,
+      values: ['ADMIN', 'USER', 'GUEST'],
     });
   });
 
@@ -243,7 +244,75 @@ model Post {
       type: 'Status',
       isRequired: false,
       isList: false,
+      values: ['ACTIVE', 'INACTIVE'],
     });
+  });
+
+  it('includes enum values on the field', () => {
+    const schema = `
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Task {
+  id       String   @id
+  priority Priority
+}
+`;
+    const map = parseSchemaText(schema);
+    const field = map.Task.fields.priority;
+    expect(field.kind).toBe('enum');
+    if (field.kind === 'enum') {
+      expect(field.values).toEqual(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+    }
+  });
+
+  it('strips @map and comments from enum values', () => {
+    const schema = `
+enum Color {
+  RED   @map("red")
+  GREEN @map("green") // the best color
+  BLUE
+}
+
+model Item {
+  id    String @id
+  color Color
+}
+`;
+    const map = parseSchemaText(schema);
+    const field = map.Item.fields.color;
+    expect(field.kind).toBe('enum');
+    if (field.kind === 'enum') {
+      expect(field.values).toEqual(['RED', 'GREEN', 'BLUE']);
+    }
+  });
+
+  it('multiple models sharing same enum both get values', () => {
+    const schema = `
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id   String @id
+  role Role
+}
+
+model Profile {
+  id   String @id
+  role Role?
+}
+`;
+    const map = parseSchemaText(schema);
+    const userRole = map.User.fields.role;
+    const profileRole = map.Profile.fields.role;
+    expect(userRole.kind === 'enum' && userRole.values).toEqual(['ADMIN', 'USER']);
+    expect(profileRole.kind === 'enum' && profileRole.values).toEqual(['ADMIN', 'USER']);
   });
 });
 

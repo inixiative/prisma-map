@@ -6,6 +6,7 @@ import type {
   RelationField,
   ScalarField,
 } from '../types';
+import { parseEnumValues } from '../v7/parseEnumValues';
 import { parseRelationFks } from '../v7/relationFks';
 
 /**
@@ -23,6 +24,7 @@ export const parseSchemaText = (schema: string): PrismaMap => {
   for (const m of schema.matchAll(/^\s*enum\s+(\w+)\s*\{/gm)) enumNames.add(m[1]);
 
   const relationFks = parseRelationFks(schema);
+  const enumValues = parseEnumValues(schema);
   const map: PrismaMap = {};
 
   for (const modelMatch of schema.matchAll(/^\s*model\s+(\w+)\s*\{([\s\S]*?)^\s*\}/gm)) {
@@ -31,7 +33,14 @@ export const parseSchemaText = (schema: string): PrismaMap => {
     const fields: Record<string, ModelField> = {};
 
     for (const rawLine of modelBody.split('\n')) {
-      const parsed = parseFieldLine(rawLine, modelName, modelNames, enumNames, relationFks);
+      const parsed = parseFieldLine(
+        rawLine,
+        modelName,
+        modelNames,
+        enumNames,
+        relationFks,
+        enumValues,
+      );
       if (parsed) fields[parsed.name] = parsed.field;
     }
 
@@ -60,6 +69,7 @@ const parseFieldLine = (
   modelNames: Set<string>,
   enumNames: Set<string>,
   relationFks: Map<string, Map<string, { fields: string[]; references: string[] }>>,
+  enumValues: Map<string, string[]>,
 ): { name: string; field: ModelField } | null => {
   const line = rawLine.trim();
 
@@ -90,7 +100,13 @@ const parseFieldLine = (
   }
 
   if (enumNames.has(typeName)) {
-    const field: EnumField = { kind: 'enum', type: typeName, isRequired, isList };
+    const field: EnumField = {
+      kind: 'enum',
+      type: typeName,
+      isRequired,
+      isList,
+      values: enumValues.get(typeName) ?? [],
+    };
     return { name: fieldName, field };
   }
 

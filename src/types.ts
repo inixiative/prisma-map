@@ -11,6 +11,7 @@ export type EnumField = {
   type: string; // enum name, e.g. 'UserRole'
   isRequired: boolean;
   isList: boolean;
+  values: string[]; // enum member names, e.g. ['ADMIN', 'USER', 'GUEST']
 };
 
 export type RelationField = {

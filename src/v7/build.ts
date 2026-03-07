@@ -8,6 +8,7 @@ import type {
   ScalarField,
 } from '../types';
 import { parseInlineSchema } from './inlineSchema';
+import { parseEnumValues } from './parseEnumValues';
 import { parseRelationFks } from './relationFks';
 import { parseRuntimeDataModel } from './runtimeDataModel';
 
@@ -32,6 +33,7 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
   const dataModel = parseRuntimeDataModel(resolvedPath);
   const inlineSchema = parseInlineSchema(resolvedPath);
   const relationFks = parseRelationFks(inlineSchema);
+  const enumValuesMap = parseEnumValues(inlineSchema);
 
   const map: PrismaMap = {};
 
@@ -55,6 +57,7 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
           type: field.type,
           isRequired: field.isRequired,
           isList: field.isList,
+          values: enumValuesMap.get(field.type) ?? [],
         };
         fields[field.name] = enumField;
       } else if (field.kind === 'object') {
