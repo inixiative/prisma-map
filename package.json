@@ -1,0 +1,66 @@
+{
+  "name": "@inixiative/prisma-map",
+  "version": "0.0.1",
+  "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma generated client — supports v6 (schema.prisma) and v7 (runtimeDataModel)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "bun run typecheck && bun run lint",
+    "prepare": "lefthook install",
+    "prepublishOnly": "bun run check && bun run build"
+  },
+  "keywords": [
+    "prisma",
+    "orm",
+    "schema",
+    "map",
+    "typescript",
+    "prisma-map",
+    "field-map"
+  ],
+  "author": "Aron Greenspan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inixiative/prisma-map"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./v7": {
+      "types": "./dist/v7/index.d.ts",
+      "import": "./dist/v7/index.js",
+      "require": "./dist/v7/index.cjs"
+    },
+    "./v6": {
+      "types": "./dist/v6/index.d.ts",
+      "import": "./dist/v6/index.js",
+      "require": "./dist/v6/index.cjs"
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
+    "@types/node": "^25.3.5",
+    "lefthook": "^2.1.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.0.0"
+  }
+}
