@@ -1,6 +1,6 @@
 {
   "name": "@inixiative/prisma-map",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma generated client — supports v6 (schema.prisma) and v7 (runtimeDataModel)",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -21,8 +21,24 @@
     "prepare": "lefthook install",
     "prepublishOnly": "bun run check && bun run build"
   },
+  "keywords": [
+    "prisma",
+    "orm",
+    "schema",
+    "map",
+    "typescript",
+    "prisma-map",
+    "field-map"
+  ],
   "author": "Aron Greenspan",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inixiative/prisma-map"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
