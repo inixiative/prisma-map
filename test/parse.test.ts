@@ -245,6 +245,27 @@ describe('parseRuntimeDataModel', () => {
       rmSync(dir, { recursive: true });
     }
   });
+
+  it('handles encoded content containing escaped quote+paren sequence', () => {
+    const runtimeDataModel = {
+      models: {
+        Weird: {
+          dbName: 'abc\\")xyz',
+          fields: [],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, ''));
+    try {
+      const result = parseRuntimeDataModel(dir);
+      expect(result.models.Weird.dbName).toBe('abc\\")xyz');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
 });
 
 describe('parseInlineSchema', () => {

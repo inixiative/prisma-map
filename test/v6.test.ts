@@ -105,6 +105,23 @@ model Post {
       isId: false,
     });
   });
+
+  it('parses optional Unsupported(...) scalar type', () => {
+    const schema = `
+model Example {
+  id String @id
+  ip Unsupported("inet")?
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.Example.fields.ip).toEqual({
+      kind: 'scalar',
+      type: 'Unsupported',
+      isRequired: false,
+      isList: false,
+      isId: false,
+    });
+  });
 });
 
 describe('parseSchemaText — relation fields', () => {

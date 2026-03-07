@@ -76,8 +76,8 @@ const parseFieldLine = (
   // Skip blank lines, block-level attributes, comments
   if (!line || line.startsWith('//') || line.startsWith('@@') || line.startsWith('@')) return null;
 
-  // fieldName TypeName?  or  fieldName TypeName[]
-  const match = line.match(/^(\w+)\s+(\w+)(\?)?(\[\])?\s*(.*)?$/);
+  // fieldName TypeName? / TypeName[] / TypeName("args")?
+  const match = line.match(/^(\w+)\s+([A-Za-z_]\w*)(?:\([^)]*\))?(\?)?(\[\])?\s*(.*)?$/);
   if (!match) return null;
 
   const [, fieldName, typeName, optional, list] = match;
