@@ -400,6 +400,7 @@ model Post {
       expect(map.Post.fields.author).toMatchObject({
         kind: 'object',
         type: 'User',
+        isList: false,
         fromFields: ['authorId'],
         toFields: ['id'],
       });
