@@ -410,6 +410,60 @@ model Post {
     }
   });
 
+  it('[P0] derives isList/isRequired/isId from inlineSchema when runtimeDataModel omits them (real v7 shape)', () => {
+    // Real Prisma v7 runtimeDataModel fields carry only name/kind/type/relationName.
+    const runtimeDataModel = {
+      models: {
+        User: {
+          dbName: null,
+          fields: [
+            { name: 'id', kind: 'scalar', type: 'String' },
+            { name: 'bio', kind: 'scalar', type: 'String' },
+            { name: 'posts', kind: 'object', type: 'Post', relationName: 'PostToUser' },
+          ],
+        },
+        Post: {
+          dbName: null,
+          fields: [
+            { name: 'id', kind: 'scalar', type: 'String' },
+            { name: 'authorId', kind: 'scalar', type: 'String' },
+            { name: 'author', kind: 'object', type: 'User', relationName: 'PostToUser' },
+          ],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const inlineSchema = `
+model User {
+  id    String  @id
+  bio   String?
+  posts Post[]
+}
+
+model Post {
+  id       String @id
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+}
+`;
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, inlineSchema));
+    try {
+      const map = buildPrismaMapV7(dir);
+      expect(map.User.fields.id).toMatchObject({ isId: true, isRequired: true, isList: false });
+      expect(map.User.fields.bio).toMatchObject({ isId: false, isRequired: false, isList: false });
+      expect(map.User.fields.posts).toMatchObject({
+        kind: 'object',
+        isList: true,
+        isRequired: true,
+      });
+      expect(map.Post.fields.author).toMatchObject({ kind: 'object', isList: false });
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
   it('[P1] parseRelationFks: handles multi-line @relation args', () => {
     const schema = `
 model Post {

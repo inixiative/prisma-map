@@ -1,6 +1,6 @@
 {
   "name": "@inixiative/prisma-map",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Extracts a complete model map (fields, relations, FK info) from a Prisma generated client — supports v6 (schema.prisma) and v7 (runtimeDataModel)",
   "type": "module",
   "main": "./dist/index.cjs",

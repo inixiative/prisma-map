@@ -7,6 +7,7 @@ import type {
   RelationField,
   ScalarField,
 } from '../types';
+import { parseFieldModifiers } from './fieldModifiers';
 import { parseInlineSchema } from './inlineSchema';
 import { parseEnumValues } from './parseEnumValues';
 import { parseRelationFks } from './relationFks';
@@ -34,29 +35,37 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
   const inlineSchema = parseInlineSchema(resolvedPath);
   const relationFks = parseRelationFks(inlineSchema);
   const enumValuesMap = parseEnumValues(inlineSchema);
+  const fieldModifiers = parseFieldModifiers(inlineSchema);
 
   const map: PrismaMap = {};
 
   for (const [modelName, model] of Object.entries(dataModel.models)) {
     const modelFks = relationFks.get(modelName);
+    const modelMods = fieldModifiers.get(modelName);
     const fields: Record<string, ModelField> = {};
 
     for (const field of model.fields) {
+      // Prisma v7's runtimeDataModel omits isList/isRequired/isId — read them from the schema.
+      const mods = modelMods?.get(field.name);
+      const isList = mods?.isList ?? field.isList ?? false;
+      const isRequired = mods?.isRequired ?? field.isRequired ?? true;
+      const isId = mods?.isId ?? field.isId ?? false;
+
       if (field.kind === 'scalar') {
         const scalarField: ScalarField = {
           kind: 'scalar',
           type: field.type,
-          isRequired: field.isRequired,
-          isList: field.isList,
-          isId: field.isId,
+          isRequired,
+          isList,
+          isId,
         };
         fields[field.name] = scalarField;
       } else if (field.kind === 'enum') {
         const enumField: EnumField = {
           kind: 'enum',
           type: field.type,
-          isRequired: field.isRequired,
-          isList: field.isList,
+          isRequired,
+          isList,
           values: enumValuesMap.get(field.type) ?? [],
         };
         fields[field.name] = enumField;
@@ -65,8 +74,8 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
         const relationField: RelationField = {
           kind: 'object',
           type: field.type,
-          isList: field.isList,
-          isRequired: field.isRequired,
+          isList,
+          isRequired,
           ...(field.relationName ? { relationName: field.relationName } : {}),
           fromFields: fkMapping?.fields ?? [],
           toFields: fkMapping?.references ?? [],
