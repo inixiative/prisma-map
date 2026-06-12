@@ -12,6 +12,7 @@ import { parseInlineSchema } from './inlineSchema';
 import { parseEnumValues } from './parseEnumValues';
 import { parseRelationFks } from './relationFks';
 import { parseRuntimeDataModel } from './runtimeDataModel';
+import { parseSchemaStructure } from './schemaStructure';
 
 /**
  * Build a complete PrismaMap from a Prisma v7 generated client directory.
@@ -36,12 +37,14 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
   const relationFks = parseRelationFks(inlineSchema);
   const enumValuesMap = parseEnumValues(inlineSchema);
   const fieldModifiers = parseFieldModifiers(inlineSchema);
+  const structure = parseSchemaStructure(inlineSchema);
 
   const map: PrismaMap = {};
 
   for (const [modelName, model] of Object.entries(dataModel.models)) {
     const modelFks = relationFks.get(modelName);
     const modelMods = fieldModifiers.get(modelName);
+    const modelStructure = structure.get(modelName);
     const fields: Record<string, ModelField> = {};
 
     for (const field of model.fields) {
@@ -50,6 +53,8 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
       const isList = mods?.isList ?? field.isList ?? false;
       const isRequired = mods?.isRequired ?? field.isRequired ?? true;
       const isId = mods?.isId ?? field.isId ?? false;
+      const fieldAnno = modelStructure?.fields.get(field.name);
+      const withAnno = fieldAnno ? { annotations: fieldAnno } : {};
 
       if (field.kind === 'scalar') {
         const scalarField: ScalarField = {
@@ -58,6 +63,7 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
           isRequired,
           isList,
           isId,
+          ...withAnno,
         };
         fields[field.name] = scalarField;
       } else if (field.kind === 'enum') {
@@ -67,6 +73,7 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
           isRequired,
           isList,
           values: enumValuesMap.get(field.type) ?? [],
+          ...withAnno,
         };
         fields[field.name] = enumField;
       } else if (field.kind === 'object') {
@@ -79,12 +86,18 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
           ...(field.relationName ? { relationName: field.relationName } : {}),
           fromFields: fkMapping?.fields ?? [],
           toFields: fkMapping?.references ?? [],
+          ...withAnno,
         };
         fields[field.name] = relationField;
       }
     }
 
-    map[modelName] = { dbName: model.dbName, fields } satisfies ModelEntry;
+    map[modelName] = {
+      dbName: model.dbName,
+      fields,
+      ...(modelStructure?.indexes.length ? { indexes: modelStructure.indexes } : {}),
+      ...(modelStructure?.annotations ? { annotations: modelStructure.annotations } : {}),
+    } satisfies ModelEntry;
   }
 
   return map;
