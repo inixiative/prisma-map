@@ -23,8 +23,8 @@ export const relationForeignKey = (field: RelationField): Identifier | null => {
  * List the relation fields of a model as RelationInfo (relation name, target
  * model, list-ness, collapsed foreign key, and any annotations).
  *
- * String-keyed and ORM-agnostic — callers needing typed model/accessor names
- * wrap this with their own generated types.
+ * String-keyed — callers needing typed model/accessor names wrap this with
+ * their own generated types.
  *
  * @throws if `modelName` is not in the map.
  */
