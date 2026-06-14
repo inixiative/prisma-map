@@ -224,8 +224,8 @@ getRelations(map, 'Inquiry');
 
 `foreignKey` is a bare field name for a single same-named pair, a
 `{ referencedField: localField }` map otherwise, and `null` for back-relations.
-Functions are string-keyed and ORM-agnostic — wrap them with your generated
-`ModelName` types if you want typed accessors.
+Functions are string-keyed — wrap them with your generated `ModelName` types if
+you want typed accessors.
 
 ## Annotation DSL (`/// @tagClass(key: value)`)
 
