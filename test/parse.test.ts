@@ -464,6 +464,39 @@ model Post {
     }
   });
 
+  it('carries field dbName from @map in the inlineSchema', () => {
+    const runtimeDataModel = {
+      models: {
+        User: {
+          dbName: 'users',
+          fields: [
+            { name: 'id', kind: 'scalar', type: 'String' },
+            { name: 'createdAt', kind: 'scalar', type: 'DateTime' },
+          ],
+        },
+      },
+      enums: {},
+      types: {},
+    };
+    const inlineSchema = `
+model User {
+  id        String   @id
+  createdAt DateTime @map("created_at")
+
+  @@map("users")
+}
+`;
+    const dir = makeFixtureDir();
+    writeFileSync(join(dir, 'internal', 'class.ts'), makeClassTs(runtimeDataModel, inlineSchema));
+    try {
+      const map = buildPrismaMapV7(dir);
+      expect(map.User.fields.createdAt).toMatchObject({ kind: 'scalar', dbName: 'created_at' });
+      expect(map.User.fields.id).not.toHaveProperty('dbName');
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
   it('[P1] parseRelationFks: handles multi-line @relation args', () => {
     const schema = `
 model Post {

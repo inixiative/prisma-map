@@ -16,6 +16,7 @@ export type ScalarField = {
   isRequired: boolean;
   isList: boolean;
   isId: boolean;
+  dbName?: string; // column name from `@map("...")`; absent = field name IS the column
   annotations?: Annotations;
 };
 
@@ -25,6 +26,7 @@ export type EnumField = {
   isRequired: boolean;
   isList: boolean;
   values: string[]; // enum member names, e.g. ['ADMIN', 'USER', 'GUEST']
+  dbName?: string; // column name from `@map("...")`; absent = field name IS the column
   annotations?: Annotations;
 };
 

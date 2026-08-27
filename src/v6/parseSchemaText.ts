@@ -85,6 +85,10 @@ const parseFieldLine = (
   const isRequired = !optional;
   const isList = !!list;
   const isId = /@id\b/.test(rest);
+  // `@map("...")` renames the COLUMN for scalar/enum fields. Relation fields
+  // never carry it (they have no column), so it is only spread below.
+  const dbName = rest.match(/@map\("([^"]+)"\)/)?.[1];
+  const withDbName = dbName ? { dbName } : {};
 
   if (modelNames.has(typeName)) {
     const fkMapping = relationFks.get(modelName)?.get(fieldName);
@@ -106,10 +110,18 @@ const parseFieldLine = (
       isRequired,
       isList,
       values: enumValues.get(typeName) ?? [],
+      ...withDbName,
     };
     return { name: fieldName, field };
   }
 
-  const field: ScalarField = { kind: 'scalar', type: typeName, isRequired, isList, isId };
+  const field: ScalarField = {
+    kind: 'scalar',
+    type: typeName,
+    isRequired,
+    isList,
+    isId,
+    ...withDbName,
+  };
   return { name: fieldName, field };
 };

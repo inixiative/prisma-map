@@ -376,6 +376,64 @@ model Post {
   });
 });
 
+// ─── parseSchemaText — field-level @map ──────────────────────────────────────
+
+describe('parseSchemaText — field-level @map', () => {
+  it('carries dbName from @map on scalar fields, absent otherwise', () => {
+    const schema = `
+model User {
+  id        String   @id
+  createdAt DateTime @map("created_at")
+  name      String
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.createdAt).toEqual({
+      kind: 'scalar',
+      type: 'DateTime',
+      isRequired: true,
+      isList: false,
+      isId: false,
+      dbName: 'created_at',
+    });
+    expect(map.User.fields.name).not.toHaveProperty('dbName');
+  });
+
+  it('carries dbName from @map on enum fields', () => {
+    const schema = `
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id   String @id
+  role Role   @map("user_role")
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.role).toEqual({
+      kind: 'enum',
+      type: 'Role',
+      isRequired: true,
+      isList: false,
+      values: ['ADMIN', 'USER'],
+      dbName: 'user_role',
+    });
+  });
+
+  it('parses @map alongside other attributes', () => {
+    const schema = `
+model User {
+  id      String  @id
+  deleted Boolean @default(false) @map("is_deleted")
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.deleted).toMatchObject({ kind: 'scalar', dbName: 'is_deleted' });
+  });
+});
+
 // ─── parseSchemaText — compound PK ──────────────────────────────────────────
 
 describe('parseSchemaText — compound PK (@@id)', () => {

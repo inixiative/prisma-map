@@ -1,11 +1,17 @@
-export type FieldModifiers = { isList: boolean; isRequired: boolean; isId: boolean };
+export type FieldModifiers = {
+  isList: boolean;
+  isRequired: boolean;
+  isId: boolean;
+  dbName?: string; // column name from `@map("...")`; absent = field name IS the column
+};
 
 /**
- * Parse per-field modifiers (isList / isRequired / isId) from schema text.
+ * Parse per-field modifiers (isList / isRequired / isId / @map dbName) from
+ * schema text.
  *
  * Prisma v7's embedded runtimeDataModel omits these, so they must come from the
- * inlineSchema — the `Type[]` / `Type?` / `@id` / `@@id([...])` syntax. Returns
- * Map<ModelName, Map<FieldName, FieldModifiers>>.
+ * inlineSchema — the `Type[]` / `Type?` / `@id` / `@@id([...])` / `@map("...")`
+ * syntax. Returns Map<ModelName, Map<FieldName, FieldModifiers>>.
  */
 export const parseFieldModifiers = (schema: string): Map<string, Map<string, FieldModifiers>> => {
   const result = new Map<string, Map<string, FieldModifiers>>();
@@ -36,7 +42,13 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
 
       const [, fieldName, , optional, list] = match;
       const rest = match[5] ?? '';
-      fieldMods.set(fieldName, { isList: !!list, isRequired: !optional, isId: /@id\b/.test(rest) });
+      const dbName = rest.match(/@map\("([^"]+)"\)/)?.[1];
+      fieldMods.set(fieldName, {
+        isList: !!list,
+        isRequired: !optional,
+        isId: /@id\b/.test(rest),
+        ...(dbName ? { dbName } : {}),
+      });
     }
 
     for (const name of compoundId) {
