@@ -4,6 +4,8 @@ export { getRelations, relationForeignKey } from './relations';
 export type {
   Annotations,
   AnnoValue,
+  DbIdentifier,
+  DbValue,
   EnumField,
   EnumValues,
   Identifier,

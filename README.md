@@ -293,6 +293,18 @@ storedValue(typeName, 'SOCIAL_POST');         // 'Social Post' via '@map' on the
 storedValue(typeName, 'UNMAPPED');            // 'UNMAPPED' — no '@map', name is the value
 ```
 
+The resolvers return branded `DbIdentifier` / `DbValue` rather than bare `string`. Both
+surfaces are strings, so a mix-up otherwise produces valid SQL that silently matches no
+rows. Type a SQL builder's parameters as the brands and a raw Prisma name becomes a
+compile error:
+
+```ts
+const eq = (column: DbIdentifier, value: DbValue) => `${column} = '${value}'`;
+
+eq(columnName(f, 'missionTypeName'), storedValue(f, 'SOCIAL_POST')); // ok
+eq('missionTypeName', 'SOCIAL_POST');                                // compile error
+```
+
 ## Notes and Limits
 
 - Every key in the map is the **Prisma** name — `map.User`, `map.User.fields.createdAt`,

@@ -663,10 +663,15 @@ model BrandMissions {
     const model = map.BrandMissions;
     const typeName = model.fields.typeName as EnumField;
 
-    expect(tableName(model, 'BrandMissions')).toBe('BrandMissions'); // no @@map
-    expect(columnName(model.fields.createdAt as ScalarField, 'createdAt')).toBe('created_at');
-    expect(columnName(model.fields.id as ScalarField, 'id')).toBe('id'); // unmapped
-    expect(storedValue(typeName, 'SOCIAL_POST')).toBe('Social Post');
-    expect(storedValue(typeName, 'UNMAPPED')).toBe('UNMAPPED'); // unmapped
+    // widened to string: the brand is a compile-time device, asserted in brands.test.ts
+    const table: string = tableName(model, 'BrandMissions');
+    const mapped: string = columnName(model.fields.createdAt as ScalarField, 'createdAt');
+    const plain: string = columnName(model.fields.id as ScalarField, 'id');
+
+    expect(table).toBe('BrandMissions'); // no @@map
+    expect(mapped).toBe('created_at');
+    expect(plain).toBe('id'); // unmapped
+    expect(storedValue(typeName, 'SOCIAL_POST') as string).toBe('Social Post');
+    expect(storedValue(typeName, 'UNMAPPED') as string).toBe('UNMAPPED'); // unmapped
   });
 });

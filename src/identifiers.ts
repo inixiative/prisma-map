@@ -1,4 +1,4 @@
-import type { EnumField, ModelEntry, ScalarField } from './types';
+import type { DbIdentifier, DbValue, EnumField, ModelEntry, ScalarField } from './types';
 
 /**
  * Resolve the physical DB identifiers behind a PrismaMap node.
@@ -21,13 +21,13 @@ export const tableName = (model: ModelEntry, modelName: string): string =>
  * Column name for a scalar or enum field — `@map` if present, else the field
  * name. Relation fields are not accepted: they have no column.
  */
-export const columnName = (field: ScalarField | EnumField, fieldName: string): string =>
-  field.dbName ?? fieldName;
+export const columnName = (field: ScalarField | EnumField, fieldName: string): DbIdentifier =>
+  (field.dbName ?? fieldName) as DbIdentifier;
 
 /**
  * Stored DB value for an enum member — the member's `@map` if present, else the
  * member name. `MissionTypeName.SOCIAL_POST @map("Social Post")` stores
  * `'Social Post'`, so comparing against `'SOCIAL_POST'` matches nothing.
  */
-export const storedValue = (field: EnumField, member: string): string =>
-  field.valueDbNames?.[member] ?? member;
+export const storedValue = (field: EnumField, member: string): DbValue =>
+  (field.valueDbNames?.[member] ?? member) as DbValue;
