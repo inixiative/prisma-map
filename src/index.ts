@@ -1,5 +1,12 @@
 export { parseTagClasses } from './annotations';
-export { columnName, storedValue, tableName } from './identifiers';
+export {
+  columnName,
+  hasColumn,
+  isEnumField,
+  isScalarField,
+  storedValue,
+  tableName,
+} from './identifiers';
 export { getRelations, relationForeignKey } from './relations';
 export type {
   Annotations,

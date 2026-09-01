@@ -1,3 +1,4 @@
+import { matchMapAttribute, stripLineComment } from '../schemaText';
 export type FieldModifiers = {
   isList: boolean;
   isRequired: boolean;
@@ -23,7 +24,7 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
     const compoundId: string[] = [];
 
     for (const rawLine of modelBody.split('\n')) {
-      const line = rawLine.trim();
+      const line = stripLineComment(rawLine).trim();
       if (!line || line.startsWith('//')) continue;
 
       const compound = line.match(/@@id\s*\(\s*\[([^\]]+)\]/);
@@ -42,7 +43,7 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
 
       const [, fieldName, , optional, list] = match;
       const rest = match[5] ?? '';
-      const dbName = rest.match(/@map\("([^"]+)"\)/)?.[1];
+      const dbName = matchMapAttribute(rest);
       fieldMods.set(fieldName, {
         isList: !!list,
         isRequired: !optional,

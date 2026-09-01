@@ -281,16 +281,34 @@ v6 detection requires `schema.prisma` and excludes directories that also have `i
 
 ## Resolving DB identifiers
 
+`map.X.fields.y` is a `ModelField` union, so narrow it first — relation fields have
+no column and the resolvers reject them at compile time:
+
 ```ts
-import { columnName, storedValue, tableName } from '@inixiative/prisma-map';
+import {
+  columnName,
+  hasColumn,
+  isEnumField,
+  storedValue,
+  tableName,
+  type DbIdentifier,
+  type DbValue,
+} from '@inixiative/prisma-map';
 
 const model = map.BrandMissions;
-const typeName = model.fields.typeName; // EnumField
 
-tableName(model, 'BrandMissions');            // '@@map' or 'BrandMissions'
-columnName(model.fields.createdAt, 'createdAt'); // 'created_at' via '@map'
-storedValue(typeName, 'SOCIAL_POST');         // 'Social Post' via '@map' on the member
-storedValue(typeName, 'UNMAPPED');            // 'UNMAPPED' — no '@map', name is the value
+tableName(model, 'BrandMissions'); // '@@map' if set, else 'BrandMissions'
+
+const createdAt = model.fields.createdAt;
+if (hasColumn(createdAt)) {
+  columnName(createdAt, 'createdAt'); // 'created_at' via '@map'
+}
+
+const typeName = model.fields.typeName;
+if (isEnumField(typeName)) {
+  storedValue(typeName, 'SOCIAL_POST'); // 'Social Post' via '@map' on the member
+  storedValue(typeName, 'UNMAPPED'); // 'UNMAPPED' — no '@map', the name is the value
+}
 ```
 
 The resolvers return branded `DbIdentifier` / `DbValue` rather than bare `string`. Both
@@ -301,8 +319,7 @@ compile error:
 ```ts
 const eq = (column: DbIdentifier, value: DbValue) => `${column} = '${value}'`;
 
-eq(columnName(f, 'missionTypeName'), storedValue(f, 'SOCIAL_POST')); // ok
-eq('missionTypeName', 'SOCIAL_POST');                                // compile error
+eq('missionTypeName', 'SOCIAL_POST'); // compile error — raw Prisma names rejected
 ```
 
 ## Notes and Limits

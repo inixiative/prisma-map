@@ -1,4 +1,11 @@
-import type { DbIdentifier, DbValue, EnumField, ModelEntry, ScalarField } from './types';
+import type {
+  DbIdentifier,
+  DbValue,
+  EnumField,
+  ModelEntry,
+  ModelField,
+  ScalarField,
+} from './types';
 
 /**
  * Resolve the physical DB identifiers behind a PrismaMap node.
@@ -14,8 +21,8 @@ import type { DbIdentifier, DbValue, EnumField, ModelEntry, ScalarField } from '
  */
 
 /** Table name for a model — `@@map` if present, else the model name. */
-export const tableName = (model: ModelEntry, modelName: string): string =>
-  model.dbName ?? modelName;
+export const tableName = (model: ModelEntry, modelName: string): DbIdentifier =>
+  (model.dbName ?? modelName) as DbIdentifier;
 
 /**
  * Column name for a scalar or enum field — `@map` if present, else the field
@@ -31,3 +38,17 @@ export const columnName = (field: ScalarField | EnumField, fieldName: string): D
  */
 export const storedValue = (field: EnumField, member: string): DbValue =>
   (field.valueDbNames?.[member] ?? member) as DbValue;
+
+/**
+ * Narrow a `ModelField` to the variants that have a column.
+ *
+ * Without these every caller hand-rolls `field.kind !== 'object'` to satisfy
+ * `columnName` — the call-site open-coding these helpers exist to remove.
+ */
+export const isScalarField = (field: ModelField): field is ScalarField => field.kind === 'scalar';
+
+export const isEnumField = (field: ModelField): field is EnumField => field.kind === 'enum';
+
+/** True for scalar and enum fields — i.e. anything `columnName` accepts. */
+export const hasColumn = (field: ModelField): field is ScalarField | EnumField =>
+  field.kind === 'scalar' || field.kind === 'enum';

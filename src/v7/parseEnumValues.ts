@@ -1,3 +1,4 @@
+import { matchMapAttribute, stripLineComment } from '../schemaText';
 import type { EnumValues } from '../types';
 
 /**
@@ -22,15 +23,15 @@ export const parseEnumValues = (schema: string): Map<string, EnumValues> => {
 
     const lines = enumMatch[2]
       .split('\n')
-      .map((line) => line.replace(/\/\/.*$/, '').trim()) // strip inline comments
+      .map((line) => stripLineComment(line).trim()) // literal-aware: keeps `@map("a//b")`
       .filter((line) => line && !line.startsWith('@@')); // skip blank lines and block attributes
 
     for (const line of lines) {
       const name = line.split(/\s+/)[0];
       values.push(name);
 
-      const dbName = line.match(/@map\("([^"]+)"\)/)?.[1];
-      if (dbName) dbNames[name] = dbName;
+      const dbName = matchMapAttribute(line);
+      if (dbName !== undefined) dbNames[name] = dbName;
     }
 
     if (values.length > 0) {

@@ -1,3 +1,4 @@
+import { matchMapAttribute, stripLineComment } from '../schemaText';
 import type {
   EnumField,
   EnumValues,
@@ -57,8 +58,16 @@ export const parseSchemaText = (schema: string): PrismaMap => {
       }
     }
 
-    const dbNameMatch = modelBody.match(/@@map\("([^"]+)"\)/);
-    map[modelName] = { dbName: dbNameMatch?.[1] ?? null, fields } satisfies ModelEntry;
+    // Anchored to a real `@@map` line (not `// was @@map("legacy")`), last one wins
+    // like Prisma. Unanchored first-match-wins previously read commented-out maps.
+    let dbName: string | null = null;
+    for (const bodyLine of modelBody.split('\n')) {
+      const stripped = stripLineComment(bodyLine).trim();
+      if (!stripped.startsWith('@@map')) continue;
+      const match = stripped.match(/^@@map\("((?:[^"\\]|\\.)*)"\)/);
+      if (match) dbName = match[1].replace(/\\(.)/g, '$1');
+    }
+    map[modelName] = { dbName, fields } satisfies ModelEntry;
   }
 
   return map;
@@ -72,7 +81,8 @@ const parseFieldLine = (
   relationFks: Map<string, Map<string, { fields: string[]; references: string[] }>>,
   enumValues: Map<string, EnumValues>,
 ): { name: string; field: ModelField } | null => {
-  const line = rawLine.trim();
+  // Strip the comment FIRST: `x String // was @map("y")` must not read as a rename.
+  const line = stripLineComment(rawLine).trim();
 
   // Skip blank lines, block-level attributes, comments
   if (!line || line.startsWith('//') || line.startsWith('@@') || line.startsWith('@')) return null;
@@ -88,7 +98,7 @@ const parseFieldLine = (
   const isId = /@id\b/.test(rest);
   // `@map("...")` renames the COLUMN for scalar/enum fields. Relation fields
   // never carry it (they have no column), so it is only spread below.
-  const dbName = rest.match(/@map\("([^"]+)"\)/)?.[1];
+  const dbName = matchMapAttribute(rest);
   const withDbName = dbName ? { dbName } : {};
 
   if (modelNames.has(typeName)) {

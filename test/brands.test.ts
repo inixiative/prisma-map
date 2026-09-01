@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { columnName, storedValue, tableName } from '../src/identifiers';
+import {
+  columnName,
+  hasColumn,
+  isEnumField,
+  isScalarField,
+  storedValue,
+  tableName,
+} from '../src/identifiers';
 import type { DbIdentifier, DbValue, EnumField, ScalarField } from '../src/types';
 import { parseSchemaText } from '../src/v6/parseSchemaText';
 
@@ -40,5 +47,22 @@ model MissionTypes {
     eq(columnName(model.fields.missionTypeName as EnumField, 'missionTypeName'), 'SOCIAL_POST');
 
     expect(true).toBe(true); // the assertions above are compile-time
+  });
+
+  it('guards narrow ModelField so callers need no hand-rolled kind check', () => {
+    const createdAt = model.fields.createdAt;
+    const typeName = model.fields.missionTypeName;
+    const id = model.fields.id;
+
+    expect(isScalarField(createdAt)).toBe(true);
+    expect(isEnumField(typeName)).toBe(true);
+    expect(isScalarField(typeName)).toBe(false);
+    expect(hasColumn(createdAt) && hasColumn(typeName) && hasColumn(id)).toBe(true);
+
+    // narrowed by the guard — no cast needed, which is the point
+    if (hasColumn(createdAt))
+      expect(columnName(createdAt, 'createdAt') as string).toBe('created_at');
+    if (isEnumField(typeName))
+      expect(storedValue(typeName, 'SOCIAL_POST') as string).toBe('Social Post');
   });
 });
