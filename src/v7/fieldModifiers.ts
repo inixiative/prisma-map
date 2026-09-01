@@ -48,7 +48,7 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
         isList: !!list,
         isRequired: !optional,
         isId: /@id\b/.test(rest),
-        ...(dbName ? { dbName } : {}),
+        ...(dbName !== undefined ? { dbName } : {}),
       });
     }
 

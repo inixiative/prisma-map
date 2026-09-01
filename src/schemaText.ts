@@ -32,8 +32,43 @@ export const stripLineComment = (line: string): string => {
 
 const trimCr = (s: string): string => (s.endsWith('\r') ? s.slice(0, -1) : s);
 
-/** `@map("...")` value, honouring backslash escapes. Undefined when absent. */
+/**
+ * Decode a Prisma string-literal escape sequence.
+ *
+ * A blanket `\\(.) -> $1` drops meaning: `@map("a\\nb")` is a newline to Prisma,
+ * not the letter `n`.
+ */
+const decodeEscapes = (value: string): string =>
+  value.replace(/\\(u[0-9a-fA-F]{4}|.)/g, (_, esc: string) => {
+    if (esc[0] === 'u') return String.fromCharCode(Number.parseInt(esc.slice(1), 16));
+    const named: Record<string, string> = {
+      n: '\n',
+      t: '\t',
+      r: '\r',
+      b: '\b',
+      f: '\f',
+      '0': '\0',
+    };
+    return named[esc] ?? esc;
+  });
+
+// Prisma accepts `@map("x")`, `@map( "x" )` and `@map(name: "x")` interchangeably.
+// Matching only the tight form silently yields the Prisma name as the column —
+// the exact wrong-identifier failure this module exists to prevent.
+const MAP_VALUE = String.raw`\(\s*(?:name:\s*)?"((?:[^"\\]|\\.)*)"\s*\)`;
+
+// `(?<!@)` so a field-level match can never pick up a model-level `@@map`.
+const FIELD_MAP = new RegExp(String.raw`(?<!@)@map${MAP_VALUE}`);
+const MODEL_MAP = new RegExp(String.raw`^@@map${MAP_VALUE}`);
+
+/** Field-level `@map(...)` column name. Undefined when absent. */
 export const matchMapAttribute = (text: string): string | undefined => {
-  const raw = text.match(/@map\("((?:[^"\\]|\\.)*)"\)/)?.[1];
-  return raw === undefined ? undefined : raw.replace(/\\(.)/g, '$1');
+  const raw = text.match(FIELD_MAP)?.[1];
+  return raw === undefined ? undefined : decodeEscapes(raw);
+};
+
+/** Model-level `@@map(...)` table name, anchored to the start of a stripped line. */
+export const matchModelMapAttribute = (line: string): string | undefined => {
+  const raw = line.match(MODEL_MAP)?.[1];
+  return raw === undefined ? undefined : decodeEscapes(raw);
 };

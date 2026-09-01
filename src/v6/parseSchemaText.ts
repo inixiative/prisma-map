@@ -1,4 +1,4 @@
-import { matchMapAttribute, stripLineComment } from '../schemaText';
+import { matchMapAttribute, matchModelMapAttribute, stripLineComment } from '../schemaText';
 import type {
   EnumField,
   EnumValues,
@@ -58,14 +58,13 @@ export const parseSchemaText = (schema: string): PrismaMap => {
       }
     }
 
-    // Anchored to a real `@@map` line (not `// was @@map("legacy")`), last one wins
-    // like Prisma. Unanchored first-match-wins previously read commented-out maps.
+    // Anchored to a real `@@map` line, so `// was @@map("legacy")` no longer wins
+    // over the real one. Prisma rejects a duplicate `@@map` outright, so last-wins
+    // here is just a deterministic choice for input Prisma would have refused.
     let dbName: string | null = null;
     for (const bodyLine of modelBody.split('\n')) {
-      const stripped = stripLineComment(bodyLine).trim();
-      if (!stripped.startsWith('@@map')) continue;
-      const match = stripped.match(/^@@map\("((?:[^"\\]|\\.)*)"\)/);
-      if (match) dbName = match[1].replace(/\\(.)/g, '$1');
+      const match = matchModelMapAttribute(stripLineComment(bodyLine).trim());
+      if (match !== undefined) dbName = match;
     }
     map[modelName] = { dbName, fields } satisfies ModelEntry;
   }
@@ -99,7 +98,7 @@ const parseFieldLine = (
   // `@map("...")` renames the COLUMN for scalar/enum fields. Relation fields
   // never carry it (they have no column), so it is only spread below.
   const dbName = matchMapAttribute(rest);
-  const withDbName = dbName ? { dbName } : {};
+  const withDbName = dbName !== undefined ? { dbName } : {};
 
   if (modelNames.has(typeName)) {
     const fkMapping = relationFks.get(modelName)?.get(fieldName);

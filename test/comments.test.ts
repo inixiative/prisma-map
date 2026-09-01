@@ -118,3 +118,61 @@ model Mixed {
     );
   });
 });
+
+describe('@map attribute forms Prisma accepts', () => {
+  it('matches spaced and named forms, not just the tight one', () => {
+    const map = parseSchemaText(`
+model Spaced {
+  id   String @id
+  a    String @map( "a_col" )
+  b    String @map(name: "b_col")
+  c    String @map( name:  "c_col" )
+  d    String @map("d_col")
+}
+`);
+    const col = (f: string) => columnName(map.Spaced.fields[f] as ScalarField, f) as string;
+    expect([col('a'), col('b'), col('c'), col('d')]).toEqual(['a_col', 'b_col', 'c_col', 'd_col']);
+  });
+
+  it('matches spaced and named forms for @@map too', () => {
+    expect(parseSchemaText('model A {\n  id String @id\n  @@map( "a_tbl" )\n}').A.dbName).toBe(
+      'a_tbl',
+    );
+    expect(parseSchemaText('model B {\n  id String @id\n  @@map(name: "b_tbl")\n}').B.dbName).toBe(
+      'b_tbl',
+    );
+  });
+
+  it('does not let a field-level match pick up a model-level @@map', () => {
+    const map = parseSchemaText(`
+model Sneaky {
+  id String @id
+  @@map("sneaky_tbl")
+}
+`);
+    expect(map.Sneaky.fields.id).not.toHaveProperty('dbName');
+    expect(map.Sneaky.dbName).toBe('sneaky_tbl');
+  });
+
+  it('decodes escape sequences the way Prisma does', () => {
+    const map = parseSchemaText(`
+model Esc {
+  id String @id
+  a  String @map("a\\nb")
+  b  String @map("a\\tb")
+  c  String @map("a\\u0041b")
+  d  String @map("a\\\\")
+}
+`);
+    const col = (f: string) => columnName(map.Esc.fields[f] as ScalarField, f) as string;
+    expect(col('a')).toBe('a\nb');
+    expect(col('b')).toBe('a\tb');
+    expect(col('c')).toBe('aAb');
+    expect(col('d')).toBe('a\\');
+  });
+
+  it('treats @map("") as present, not absent', () => {
+    const map = parseSchemaText('model E {\n  id String @id\n  a String @map("")\n}');
+    expect((map.E.fields.a as ScalarField).dbName).toBe('');
+  });
+});
