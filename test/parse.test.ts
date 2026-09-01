@@ -615,10 +615,10 @@ enum UserRole {
 }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('UserRole')).toEqual(['ADMIN', 'USER', 'GUEST']);
+    expect(result.get('UserRole')).toEqual({ values: ['ADMIN', 'USER', 'GUEST'] });
   });
 
-  it('strips @map annotations from values', () => {
+  it('keeps member names in `values` and carries @map as stored dbNames', () => {
     const schema = `
 enum Color {
   RED   @map("red")
@@ -627,7 +627,10 @@ enum Color {
 }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('Color')).toEqual(['RED', 'GREEN', 'BLUE']);
+    expect(result.get('Color')).toEqual({
+      values: ['RED', 'GREEN', 'BLUE'],
+      dbNames: { RED: 'red', GREEN: 'green' }, // BLUE unmapped -> absent
+    });
   });
 
   it('strips inline comments', () => {
@@ -639,7 +642,7 @@ enum Status {
 }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('Status')).toEqual(['ACTIVE', 'INACTIVE', 'PENDING']);
+    expect(result.get('Status')).toEqual({ values: ['ACTIVE', 'INACTIVE', 'PENDING'] });
   });
 
   it('skips @@map block attributes', () => {
@@ -651,7 +654,7 @@ enum Priority {
 }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('Priority')).toEqual(['LOW', 'HIGH']);
+    expect(result.get('Priority')).toEqual({ values: ['LOW', 'HIGH'] });
   });
 
   it('parses multiple enums', () => {
@@ -667,8 +670,8 @@ enum Status {
 }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('Role')).toEqual(['ADMIN', 'USER']);
-    expect(result.get('Status')).toEqual(['ACTIVE', 'INACTIVE']);
+    expect(result.get('Role')).toEqual({ values: ['ADMIN', 'USER'] });
+    expect(result.get('Status')).toEqual({ values: ['ACTIVE', 'INACTIVE'] });
   });
 
   it('returns empty map for schema with no enums', () => {
@@ -690,6 +693,6 @@ model User {
   }
 `;
     const result = parseEnumValues(schema);
-    expect(result.get('Tier')).toEqual(['FREE', 'PRO', 'ENTERPRISE']);
+    expect(result.get('Tier')).toEqual({ values: ['FREE', 'PRO', 'ENTERPRISE'] });
   });
 });

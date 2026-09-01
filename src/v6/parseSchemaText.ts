@@ -1,5 +1,6 @@
 import type {
   EnumField,
+  EnumValues,
   ModelEntry,
   ModelField,
   PrismaMap,
@@ -69,7 +70,7 @@ const parseFieldLine = (
   modelNames: Set<string>,
   enumNames: Set<string>,
   relationFks: Map<string, Map<string, { fields: string[]; references: string[] }>>,
-  enumValues: Map<string, string[]>,
+  enumValues: Map<string, EnumValues>,
 ): { name: string; field: ModelField } | null => {
   const line = rawLine.trim();
 
@@ -104,12 +105,14 @@ const parseFieldLine = (
   }
 
   if (enumNames.has(typeName)) {
+    const enumEntry = enumValues.get(typeName);
     const field: EnumField = {
       kind: 'enum',
       type: typeName,
       isRequired,
       isList,
-      values: enumValues.get(typeName) ?? [],
+      values: enumEntry?.values ?? [],
+      ...(enumEntry?.dbNames ? { valueDbNames: enumEntry.dbNames } : {}),
       ...withDbName,
     };
     return { name: fieldName, field };

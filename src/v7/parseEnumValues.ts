@@ -1,25 +1,44 @@
+import type { EnumValues } from '../types';
+
 /**
  * Parse all enum declarations from a Prisma schema string.
  *
- * Returns Map<EnumName, string[]> — the ordered list of member names.
+ * Returns Map<EnumName, EnumValues> — the ordered member names plus, for members
+ * carrying `@map("...")`, the stored DB value keyed by member name.
  *
  * Handles:
- *   - @map("db_name") annotations on values (ignored — only name is kept)
+ *   - `@map("db_value")` on values — kept as `dbNames`, sparse (absent = the
+ *     member name IS the stored value)
  *   - Comments (stripped before parsing)
  *   - Indented enum blocks
  */
-export const parseEnumValues = (schema: string): Map<string, string[]> => {
-  const result = new Map<string, string[]>();
+export const parseEnumValues = (schema: string): Map<string, EnumValues> => {
+  const result = new Map<string, EnumValues>();
 
   for (const enumMatch of schema.matchAll(/^\s*enum\s+(\w+)\s*\{([\s\S]*?)^\s*\}/gm)) {
     const enumName = enumMatch[1];
-    const values = enumMatch[2]
+    const values: string[] = [];
+    const dbNames: Record<string, string> = {};
+
+    const lines = enumMatch[2]
       .split('\n')
       .map((line) => line.replace(/\/\/.*$/, '').trim()) // strip inline comments
-      .filter((line) => line && !line.startsWith('@@')) // skip blank lines and block attributes
-      .map((line) => line.split(/\s+/)[0]); // value name only (ignore @map etc.)
+      .filter((line) => line && !line.startsWith('@@')); // skip blank lines and block attributes
 
-    if (values.length > 0) result.set(enumName, values);
+    for (const line of lines) {
+      const name = line.split(/\s+/)[0];
+      values.push(name);
+
+      const dbName = line.match(/@map\("([^"]+)"\)/)?.[1];
+      if (dbName) dbNames[name] = dbName;
+    }
+
+    if (values.length > 0) {
+      result.set(enumName, {
+        values,
+        ...(Object.keys(dbNames).length > 0 ? { dbNames } : {}),
+      });
+    }
   }
 
   return result;

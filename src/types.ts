@@ -26,7 +26,11 @@ export type EnumField = {
   isRequired: boolean;
   isList: boolean;
   values: string[]; // enum member names, e.g. ['ADMIN', 'USER', 'GUEST']
-  dbName?: string; // column name from `@map("...")`; absent = field name IS the column
+  dbName?: string; // COLUMN name from `@map("...")`; absent = field name IS the column
+  // Stored DB VALUES from `@map("...")` on enum members, keyed by member name.
+  // Sparse — absent entry means the member name IS the stored value. Distinct
+  // from `dbName` above, which renames the column, not its contents.
+  valueDbNames?: Record<string, string>;
   annotations?: Annotations;
 };
 
@@ -100,6 +104,11 @@ export type RuntimeDataModel = {
   models: Record<string, RuntimeModel>;
   enums: Record<string, unknown>;
   types: Record<string, unknown>;
+};
+
+export type EnumValues = {
+  values: string[]; // member names, in declared order
+  dbNames?: Record<string, string>; // member name -> stored DB value, for members with `@map`
 };
 
 export type RelationFkMapping = {

@@ -56,6 +56,8 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
       const fieldAnno = modelStructure?.fields.get(field.name);
       const withAnno = fieldAnno ? { annotations: fieldAnno } : {};
       const withDbName = mods?.dbName ? { dbName: mods.dbName } : {};
+      const valueDbNames = enumValuesMap.get(field.type)?.dbNames;
+      const withValueDbNames = valueDbNames ? { valueDbNames } : {};
 
       if (field.kind === 'scalar') {
         const scalarField: ScalarField = {
@@ -74,7 +76,8 @@ export const buildPrismaMapV7 = (generatedClientPath?: string): PrismaMap => {
           type: field.type,
           isRequired,
           isList,
-          values: enumValuesMap.get(field.type) ?? [],
+          values: enumValuesMap.get(field.type)?.values ?? [],
+          ...withValueDbNames,
           ...withDbName,
           ...withAnno,
         };

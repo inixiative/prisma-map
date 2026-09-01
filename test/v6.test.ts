@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { columnName, storedValue, tableName } from '../src/identifiers';
+import type { EnumField, ScalarField } from '../src/types';
 import { buildFromSchemaFile } from '../src/v6/parseSchemaFile';
 import { parseSchemaText } from '../src/v6/parseSchemaText';
 
@@ -594,5 +596,77 @@ model Post {
     } finally {
       rmSync(dir, { recursive: true });
     }
+  });
+});
+
+// ─── enum-value @map ────────────────────────────────────────────────────────
+
+describe('parseSchemaText — enum-value @map', () => {
+  const schema = `
+enum MissionTypeName {
+  SOCIAL_POST @map("Social Post")
+  SURVEY      @map("Survey")
+  UNMAPPED
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model BrandMissions {
+  id       Int             @id
+  typeName MissionTypeName
+  role     Role
+}
+`;
+
+  it('carries stored values for mapped members, sparsely', () => {
+    const map = parseSchemaText(schema);
+    const field = map.BrandMissions.fields.typeName;
+
+    expect(field).toMatchObject({
+      kind: 'enum',
+      type: 'MissionTypeName',
+      values: ['SOCIAL_POST', 'SURVEY', 'UNMAPPED'],
+      valueDbNames: { SOCIAL_POST: 'Social Post', SURVEY: 'Survey' },
+    });
+  });
+
+  it('omits valueDbNames entirely when no member is mapped', () => {
+    const map = parseSchemaText(schema);
+    expect(map.BrandMissions.fields.role).not.toHaveProperty('valueDbNames');
+    expect(map.BrandMissions.fields.role).toMatchObject({ values: ['ADMIN', 'USER'] });
+  });
+
+  it('keeps member names in `values` — the map does not rewrite the Prisma surface', () => {
+    const map = parseSchemaText(schema);
+    const field = map.BrandMissions.fields.typeName as { values: string[] };
+    expect(field.values).not.toContain('Social Post');
+  });
+});
+
+describe('identifiers — resolving the DB surface', () => {
+  it('resolves table, column and stored value, falling back to the Prisma name', () => {
+    const map = parseSchemaText(`
+enum MissionTypeName {
+  SOCIAL_POST @map("Social Post")
+  UNMAPPED
+}
+
+model BrandMissions {
+  id        Int             @id
+  createdAt DateTime        @map("created_at")
+  typeName  MissionTypeName
+}
+`);
+    const model = map.BrandMissions;
+    const typeName = model.fields.typeName as EnumField;
+
+    expect(tableName(model, 'BrandMissions')).toBe('BrandMissions'); // no @@map
+    expect(columnName(model.fields.createdAt as ScalarField, 'createdAt')).toBe('created_at');
+    expect(columnName(model.fields.id as ScalarField, 'id')).toBe('id'); // unmapped
+    expect(storedValue(typeName, 'SOCIAL_POST')).toBe('Social Post');
+    expect(storedValue(typeName, 'UNMAPPED')).toBe('UNMAPPED'); // unmapped
   });
 });
