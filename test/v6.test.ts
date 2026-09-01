@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { columnName, storedValue, tableName } from '../src/identifiers';
+import type { EnumField, ScalarField } from '../src/types';
 import { buildFromSchemaFile } from '../src/v6/parseSchemaFile';
 import { parseSchemaText } from '../src/v6/parseSchemaText';
 
@@ -376,6 +378,64 @@ model Post {
   });
 });
 
+// ─── parseSchemaText — field-level @map ──────────────────────────────────────
+
+describe('parseSchemaText — field-level @map', () => {
+  it('carries dbName from @map on scalar fields, absent otherwise', () => {
+    const schema = `
+model User {
+  id        String   @id
+  createdAt DateTime @map("created_at")
+  name      String
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.createdAt).toEqual({
+      kind: 'scalar',
+      type: 'DateTime',
+      isRequired: true,
+      isList: false,
+      isId: false,
+      dbName: 'created_at',
+    });
+    expect(map.User.fields.name).not.toHaveProperty('dbName');
+  });
+
+  it('carries dbName from @map on enum fields', () => {
+    const schema = `
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id   String @id
+  role Role   @map("user_role")
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.role).toEqual({
+      kind: 'enum',
+      type: 'Role',
+      isRequired: true,
+      isList: false,
+      values: ['ADMIN', 'USER'],
+      dbName: 'user_role',
+    });
+  });
+
+  it('parses @map alongside other attributes', () => {
+    const schema = `
+model User {
+  id      String  @id
+  deleted Boolean @default(false) @map("is_deleted")
+}
+`;
+    const map = parseSchemaText(schema);
+    expect(map.User.fields.deleted).toMatchObject({ kind: 'scalar', dbName: 'is_deleted' });
+  });
+});
+
 // ─── parseSchemaText — compound PK ──────────────────────────────────────────
 
 describe('parseSchemaText — compound PK (@@id)', () => {
@@ -536,5 +596,82 @@ model Post {
     } finally {
       rmSync(dir, { recursive: true });
     }
+  });
+});
+
+// ─── enum-value @map ────────────────────────────────────────────────────────
+
+describe('parseSchemaText — enum-value @map', () => {
+  const schema = `
+enum MissionTypeName {
+  SOCIAL_POST @map("Social Post")
+  SURVEY      @map("Survey")
+  UNMAPPED
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model BrandMissions {
+  id       Int             @id
+  typeName MissionTypeName
+  role     Role
+}
+`;
+
+  it('carries stored values for mapped members, sparsely', () => {
+    const map = parseSchemaText(schema);
+    const field = map.BrandMissions.fields.typeName;
+
+    expect(field).toMatchObject({
+      kind: 'enum',
+      type: 'MissionTypeName',
+      values: ['SOCIAL_POST', 'SURVEY', 'UNMAPPED'],
+      valueDbNames: { SOCIAL_POST: 'Social Post', SURVEY: 'Survey' },
+    });
+  });
+
+  it('omits valueDbNames entirely when no member is mapped', () => {
+    const map = parseSchemaText(schema);
+    expect(map.BrandMissions.fields.role).not.toHaveProperty('valueDbNames');
+    expect(map.BrandMissions.fields.role).toMatchObject({ values: ['ADMIN', 'USER'] });
+  });
+
+  it('keeps member names in `values` — the map does not rewrite the Prisma surface', () => {
+    const map = parseSchemaText(schema);
+    const field = map.BrandMissions.fields.typeName as { values: string[] };
+    expect(field.values).not.toContain('Social Post');
+  });
+});
+
+describe('identifiers — resolving the DB surface', () => {
+  it('resolves table, column and stored value, falling back to the Prisma name', () => {
+    const map = parseSchemaText(`
+enum MissionTypeName {
+  SOCIAL_POST @map("Social Post")
+  UNMAPPED
+}
+
+model BrandMissions {
+  id        Int             @id
+  createdAt DateTime        @map("created_at")
+  typeName  MissionTypeName
+}
+`);
+    const model = map.BrandMissions;
+    const typeName = model.fields.typeName as EnumField;
+
+    // widened to string: the brand is a compile-time device, asserted in brands.test.ts
+    const table: string = tableName(model, 'BrandMissions');
+    const mapped: string = columnName(model.fields.createdAt as ScalarField, 'createdAt');
+    const plain: string = columnName(model.fields.id as ScalarField, 'id');
+
+    expect(table).toBe('BrandMissions'); // no @@map
+    expect(mapped).toBe('created_at');
+    expect(plain).toBe('id'); // unmapped
+    expect(storedValue(typeName, 'SOCIAL_POST') as string).toBe('Social Post');
+    expect(storedValue(typeName, 'UNMAPPED') as string).toBe('UNMAPPED'); // unmapped
   });
 });

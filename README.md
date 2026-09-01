@@ -7,7 +7,8 @@ Extract a structured, runtime-friendly model map from a Prisma generated client.
 - Field kinds (`scalar`, `enum`, `object`)
 - Relation FK direction (`fromFields`, `toFields`)
 - Model DB table name (`@@map`) as `dbName`
-- Enum values (ordered)
+- Field DB column name (`@map`) as `dbName`
+- Enum values (ordered), with stored DB values (`@map` on members) as `valueDbNames`
 
 It supports both Prisma client layouts:
 - Prisma v7: parse generated `internal/class.ts`
@@ -278,11 +279,60 @@ v6 detection requires `schema.prisma` and excludes directories that also have `i
 - Generate guardrails (for example, "entity X must include relation Y")
 - Build field-level introspection UIs
 
+## Resolving DB identifiers
+
+`map.X.fields.y` is a `ModelField` union, so narrow it first — relation fields have
+no column and the resolvers reject them at compile time:
+
+```ts
+import {
+  columnName,
+  hasColumn,
+  isEnumField,
+  storedValue,
+  tableName,
+  type DbIdentifier,
+  type DbValue,
+} from '@inixiative/prisma-map';
+
+const model = map.BrandMissions;
+
+tableName(model, 'BrandMissions'); // '@@map' if set, else 'BrandMissions'
+
+const createdAt = model.fields.createdAt;
+if (hasColumn(createdAt)) {
+  columnName(createdAt, 'createdAt'); // 'created_at' via '@map'
+}
+
+const typeName = model.fields.typeName;
+if (isEnumField(typeName)) {
+  storedValue(typeName, 'SOCIAL_POST'); // 'Social Post' via '@map' on the member
+  storedValue(typeName, 'UNMAPPED'); // 'UNMAPPED' — no '@map', the name is the value
+}
+```
+
+The resolvers return branded `DbIdentifier` / `DbValue` rather than bare `string`. Both
+surfaces are strings, so a mix-up otherwise produces valid SQL that silently matches no
+rows. Type a SQL builder's parameters as the brands and a raw Prisma name becomes a
+compile error:
+
+```ts
+const eq = (column: DbIdentifier, value: DbValue) => `${column} = '${value}'`;
+
+eq('missionTypeName', 'SOCIAL_POST'); // compile error — raw Prisma names rejected
+```
+
 ## Notes and Limits
 
-- The output uses logical Prisma field names.
-- Field-level DB aliases (`@map` on fields) are not emitted today.
-- Model DB alias (`@@map`) is emitted as `dbName`.
+- Every key in the map is the **Prisma** name — `map.User`, `map.User.fields.createdAt`,
+  and the entries of `values`. `dbName` / `valueDbNames` are the only crossings to the
+  physical DB surface, and both are sparse: absent means the Prisma name IS the DB
+  identifier. Resolve them with `tableName` / `columnName` / `storedValue` rather than
+  open-coding `?? name` — a missed fallback fails silently (comparing against an unmapped
+  enum member selects zero rows instead of erroring).
+- `@@map` on a model is emitted as `ModelEntry.dbName`; `@map` on a scalar/enum field as
+  the field's `dbName`; `@map` on enum members as the field's `valueDbNames`.
+- Relation fields never carry `dbName` — they have no column.
 - Native DB type annotations (for example `@db.Text`) are not emitted.
 - `relationName` is included when available in Prisma runtime metadata.
 

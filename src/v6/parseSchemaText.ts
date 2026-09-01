@@ -1,5 +1,7 @@
+import { matchMapAttribute, matchModelMapAttribute, stripLineComment } from '../schemaText';
 import type {
   EnumField,
+  EnumValues,
   ModelEntry,
   ModelField,
   PrismaMap,
@@ -56,8 +58,15 @@ export const parseSchemaText = (schema: string): PrismaMap => {
       }
     }
 
-    const dbNameMatch = modelBody.match(/@@map\("([^"]+)"\)/);
-    map[modelName] = { dbName: dbNameMatch?.[1] ?? null, fields } satisfies ModelEntry;
+    // Anchored to a real `@@map` line, so `// was @@map("legacy")` no longer wins
+    // over the real one. Prisma rejects a duplicate `@@map` outright, so last-wins
+    // here is just a deterministic choice for input Prisma would have refused.
+    let dbName: string | null = null;
+    for (const bodyLine of modelBody.split('\n')) {
+      const match = matchModelMapAttribute(stripLineComment(bodyLine).trim());
+      if (match !== undefined) dbName = match;
+    }
+    map[modelName] = { dbName, fields } satisfies ModelEntry;
   }
 
   return map;
@@ -69,9 +78,10 @@ const parseFieldLine = (
   modelNames: Set<string>,
   enumNames: Set<string>,
   relationFks: Map<string, Map<string, { fields: string[]; references: string[] }>>,
-  enumValues: Map<string, string[]>,
+  enumValues: Map<string, EnumValues>,
 ): { name: string; field: ModelField } | null => {
-  const line = rawLine.trim();
+  // Strip the comment FIRST: `x String // was @map("y")` must not read as a rename.
+  const line = stripLineComment(rawLine).trim();
 
   // Skip blank lines, block-level attributes, comments
   if (!line || line.startsWith('//') || line.startsWith('@@') || line.startsWith('@')) return null;
@@ -85,6 +95,10 @@ const parseFieldLine = (
   const isRequired = !optional;
   const isList = !!list;
   const isId = /@id\b/.test(rest);
+  // `@map("...")` renames the COLUMN for scalar/enum fields. Relation fields
+  // never carry it (they have no column), so it is only spread below.
+  const dbName = matchMapAttribute(rest);
+  const withDbName = dbName !== undefined ? { dbName } : {};
 
   if (modelNames.has(typeName)) {
     const fkMapping = relationFks.get(modelName)?.get(fieldName);
@@ -100,16 +114,26 @@ const parseFieldLine = (
   }
 
   if (enumNames.has(typeName)) {
+    const enumEntry = enumValues.get(typeName);
     const field: EnumField = {
       kind: 'enum',
       type: typeName,
       isRequired,
       isList,
-      values: enumValues.get(typeName) ?? [],
+      values: enumEntry?.values ?? [],
+      ...(enumEntry?.dbNames ? { valueDbNames: enumEntry.dbNames } : {}),
+      ...withDbName,
     };
     return { name: fieldName, field };
   }
 
-  const field: ScalarField = { kind: 'scalar', type: typeName, isRequired, isList, isId };
+  const field: ScalarField = {
+    kind: 'scalar',
+    type: typeName,
+    isRequired,
+    isList,
+    isId,
+    ...withDbName,
+  };
   return { name: fieldName, field };
 };

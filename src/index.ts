@@ -1,9 +1,20 @@
 export { parseTagClasses } from './annotations';
+export {
+  columnName,
+  hasColumn,
+  isEnumField,
+  isScalarField,
+  storedValue,
+  tableName,
+} from './identifiers';
 export { getRelations, relationForeignKey } from './relations';
 export type {
   Annotations,
   AnnoValue,
+  DbIdentifier,
+  DbValue,
   EnumField,
+  EnumValues,
   Identifier,
   IndexEntry,
   IndexKind,
