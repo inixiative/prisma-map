@@ -8,6 +8,7 @@ export {
   tableName,
 } from './identifiers';
 export { getRelations, relationForeignKey } from './relations';
+export type { FieldDefault, FieldDefaultValue } from './schemaText';
 export type {
   Annotations,
   AnnoValue,

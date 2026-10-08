@@ -1,9 +1,15 @@
-import { matchMapAttribute, stripLineComment } from '../schemaText';
+import {
+  type FieldDefault,
+  matchDefaultAttribute,
+  matchMapAttribute,
+  stripLineComment,
+} from '../schemaText';
 export type FieldModifiers = {
   isList: boolean;
   isRequired: boolean;
   isId: boolean;
   dbName?: string; // column name from `@map("...")`; absent = field name IS the column
+  default?: FieldDefault;
 };
 
 /**
@@ -44,11 +50,13 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
       const [, fieldName, , optional, list] = match;
       const rest = match[5] ?? '';
       const dbName = matchMapAttribute(rest);
+      const fieldDefault = matchDefaultAttribute(rest);
       fieldMods.set(fieldName, {
         isList: !!list,
         isRequired: !optional,
         isId: /@id\b/.test(rest),
         ...(dbName !== undefined ? { dbName } : {}),
+        ...(fieldDefault ? { default: fieldDefault } : {}),
       });
     }
 

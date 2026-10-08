@@ -1,4 +1,9 @@
-import { matchMapAttribute, matchModelMapAttribute, stripLineComment } from '../schemaText';
+import {
+  matchDefaultAttribute,
+  matchMapAttribute,
+  matchModelMapAttribute,
+  stripLineComment,
+} from '../schemaText';
 import type {
   EnumField,
   EnumValues,
@@ -99,6 +104,8 @@ const parseFieldLine = (
   // never carry it (they have no column), so it is only spread below.
   const dbName = matchMapAttribute(rest);
   const withDbName = dbName !== undefined ? { dbName } : {};
+  const fieldDefault = matchDefaultAttribute(rest);
+  const withDefault = fieldDefault ? { default: fieldDefault } : {};
 
   if (modelNames.has(typeName)) {
     const fkMapping = relationFks.get(modelName)?.get(fieldName);
@@ -123,6 +130,7 @@ const parseFieldLine = (
       values: enumEntry?.values ?? [],
       ...(enumEntry?.dbNames ? { valueDbNames: enumEntry.dbNames } : {}),
       ...withDbName,
+      ...withDefault,
     };
     return { name: fieldName, field };
   }
@@ -134,6 +142,7 @@ const parseFieldLine = (
     isList,
     isId,
     ...withDbName,
+    ...withDefault,
   };
   return { name: fieldName, field };
 };

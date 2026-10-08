@@ -1,3 +1,5 @@
+import type { FieldDefault } from './schemaText';
+
 // ─── Annotations (the `/// @tagClass(key: value)` DSL) ───────────────────────
 
 // A single annotation value. Bare words and quoted strings both land as string.
@@ -36,6 +38,7 @@ export type ScalarField = {
   isList: boolean;
   isId: boolean;
   dbName?: string; // column name from `@map("...")`; absent = field name IS the column
+  default?: FieldDefault;
   annotations?: Annotations;
 };
 
@@ -50,6 +53,7 @@ export type EnumField = {
   // Sparse — absent entry means the member name IS the stored value. Distinct
   // from `dbName` above, which renames the column, not its contents.
   valueDbNames?: Record<string, string>;
+  default?: FieldDefault;
   annotations?: Annotations;
 };
 
