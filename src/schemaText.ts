@@ -73,7 +73,13 @@ export const matchModelMapAttribute = (line: string): string | undefined => {
   return raw === undefined ? undefined : decodeEscapes(raw);
 };
 
-export type FieldDefaultValue = string | number | boolean | FieldDefaultValue[];
+export type FieldDefaultValue =
+  | string
+  | number
+  | boolean
+  | null
+  | FieldDefaultValue[]
+  | { [key: string]: FieldDefaultValue };
 
 export type FieldDefault =
   | { kind: 'literal'; value: FieldDefaultValue }
@@ -139,16 +145,60 @@ const literalValue = (expression: string): FieldDefaultValue | undefined => {
   return undefined;
 };
 
+const defaultAttributeStart = (text: string): number => {
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (
+      text.startsWith('@default', i) &&
+      text[i - 1] !== '@' &&
+      /^@default\s*\(/.test(text.slice(i))
+    )
+      return i;
+  }
+  return -1;
+};
+
+const typedLiteral = (
+  fieldType: string | undefined,
+  expression: string,
+  value: FieldDefaultValue,
+): FieldDefault => {
+  if (fieldType === 'Bytes') return { kind: 'generated', expression };
+  if (fieldType === 'Json' && typeof value === 'string') {
+    try {
+      return { kind: 'literal', value: JSON.parse(value) as FieldDefaultValue };
+    } catch {
+      return { kind: 'generated', expression };
+    }
+  }
+  if ((fieldType === 'BigInt' || fieldType === 'Decimal') && typeof value === 'number')
+    return { kind: 'literal', value: expression };
+  return { kind: 'literal', value };
+};
+
 /**
  * Field-level `@default(...)`. A value the database stores as written (enum member, string,
- * number, boolean, list) is a `literal` a consumer may inject; a function the database or
- * Prisma evaluates (`now()`, `uuid()`, `dbgenerated(...)`, `autoincrement()`) is `generated`.
+ * number, boolean, list; Json parsed; BigInt/Decimal kept as exact text) is a `literal` a
+ * consumer may inject; a function the database or Prisma evaluates (`now()`, `uuid()`,
+ * `dbgenerated(...)`, `autoincrement()`), or a Bytes value, is `generated` and never injected.
  */
-export const matchDefaultAttribute = (text: string): FieldDefault | undefined => {
-  const at = text.search(/(?<!@)@default\s*\(/);
+export const matchDefaultAttribute = (
+  text: string,
+  fieldType?: string,
+): FieldDefault | undefined => {
+  const at = defaultAttributeStart(text);
   if (at === -1) return undefined;
   const expression = balancedArgument(text, text.indexOf('(', at))?.trim();
   if (expression === undefined) return undefined;
   const value = literalValue(expression);
-  return value === undefined ? { kind: 'generated', expression } : { kind: 'literal', value };
+  return value === undefined
+    ? { kind: 'generated', expression }
+    : typedLiteral(fieldType, expression, value);
 };

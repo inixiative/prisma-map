@@ -76,3 +76,49 @@ model Tag {
     expect(fields.get('userId')?.default).toBeUndefined();
   });
 });
+
+describe('defaults read by field type', () => {
+  it('parses a Json default into its value', () => {
+    expect(matchDefaultAttribute('@default("{}")', 'Json')).toEqual({ kind: 'literal', value: {} });
+    expect(matchDefaultAttribute('@default("[1,\\"a\\"]")', 'Json')).toEqual({
+      kind: 'literal',
+      value: [1, 'a'],
+    });
+  });
+
+  it('never offers a Bytes default for injection', () => {
+    expect(matchDefaultAttribute('@default("AAEC")', 'Bytes')).toEqual({
+      kind: 'generated',
+      expression: '"AAEC"',
+    });
+  });
+
+  it('keeps BigInt and Decimal defaults exact', () => {
+    expect(matchDefaultAttribute('@default(9007199254740993)', 'BigInt')).toEqual({
+      kind: 'literal',
+      value: '9007199254740993',
+    });
+    expect(matchDefaultAttribute('@default(0.1)', 'Decimal')).toEqual({
+      kind: 'literal',
+      value: '0.1',
+    });
+  });
+
+  it('ignores @default text inside a string', () => {
+    expect(matchDefaultAttribute('@map("x@default(1)") @default(2)', 'Int')).toEqual({
+      kind: 'literal',
+      value: 2,
+    });
+    expect(matchDefaultAttribute('@map("@default(evil)")', 'String')).toBeUndefined();
+  });
+
+  it('v6 parses a Json column default as JSON', () => {
+    const fields = parseSchemaText(`
+model Inquiry {
+  id      String @id
+  content Json   @default("{}")
+}
+`).Inquiry!.fields;
+    expect(fields.content).toMatchObject({ default: { kind: 'literal', value: {} } });
+  });
+});
