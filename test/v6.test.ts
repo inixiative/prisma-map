@@ -32,6 +32,7 @@ model User {
       isRequired: true,
       isList: false,
       isId: true,
+      default: { kind: 'generated', expression: 'cuid()' },
     });
     expect(map.User.fields.name).toEqual({
       kind: 'scalar',
@@ -105,6 +106,7 @@ model Post {
       isRequired: true,
       isList: false,
       isId: false,
+      default: { kind: 'generated', expression: 'now()' },
     });
   });
 
@@ -242,6 +244,7 @@ model User {
       isRequired: true,
       isList: false,
       values: ['ADMIN', 'USER', 'GUEST'],
+      default: { kind: 'literal', value: 'USER' },
     });
   });
 

@@ -72,3 +72,83 @@ export const matchModelMapAttribute = (line: string): string | undefined => {
   const raw = line.match(MODEL_MAP)?.[1];
   return raw === undefined ? undefined : decodeEscapes(raw);
 };
+
+export type FieldDefaultValue = string | number | boolean | FieldDefaultValue[];
+
+export type FieldDefault =
+  | { kind: 'literal'; value: FieldDefaultValue }
+  | { kind: 'generated'; expression: string };
+
+const balancedArgument = (text: string, open: number): string | undefined => {
+  let depth = 0;
+  let inString = false;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') {
+      depth--;
+      if (depth === 0) return text.slice(open + 1, i);
+    }
+  }
+  return undefined;
+};
+
+const splitTopLevel = (list: string): string[] => {
+  const items: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let start = 0;
+  for (let i = 0; i < list.length; i++) {
+    const ch = list[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') depth--;
+    else if (ch === ',' && depth === 0) {
+      items.push(list.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  const last = list.slice(start).trim();
+  if (last) items.push(last);
+  return items;
+};
+
+const literalValue = (expression: string): FieldDefaultValue | undefined => {
+  const quoted = expression.match(/^"((?:[^"\\]|\\.)*)"$/);
+  if (quoted) return decodeEscapes(quoted[1]);
+  if (expression === 'true' || expression === 'false') return expression === 'true';
+  if (/^-?\d+(\.\d+)?$/.test(expression)) return Number(expression);
+  if (/^[A-Za-z_]\w*$/.test(expression)) return expression;
+  if (expression.startsWith('[') && expression.endsWith(']')) {
+    const values = splitTopLevel(expression.slice(1, -1)).map(literalValue);
+    return values.every((value) => value !== undefined)
+      ? (values as FieldDefaultValue[])
+      : undefined;
+  }
+  return undefined;
+};
+
+/**
+ * Field-level `@default(...)`. A value the database stores as written (enum member, string,
+ * number, boolean, list) is a `literal` a consumer may inject; a function the database or
+ * Prisma evaluates (`now()`, `uuid()`, `dbgenerated(...)`, `autoincrement()`) is `generated`.
+ */
+export const matchDefaultAttribute = (text: string): FieldDefault | undefined => {
+  const at = text.search(/(?<!@)@default\s*\(/);
+  if (at === -1) return undefined;
+  const expression = balancedArgument(text, text.indexOf('(', at))?.trim();
+  if (expression === undefined) return undefined;
+  const value = literalValue(expression);
+  return value === undefined ? { kind: 'generated', expression } : { kind: 'literal', value };
+};
