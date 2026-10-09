@@ -104,7 +104,7 @@ const parseFieldLine = (
   // never carry it (they have no column), so it is only spread below.
   const dbName = matchMapAttribute(rest);
   const withDbName = dbName !== undefined ? { dbName } : {};
-  const fieldDefault = matchDefaultAttribute(rest);
+  const fieldDefault = matchDefaultAttribute(rest, typeName);
   const withDefault = fieldDefault ? { default: fieldDefault } : {};
 
   if (modelNames.has(typeName)) {

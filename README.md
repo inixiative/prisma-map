@@ -9,7 +9,7 @@ Extract a structured, runtime-friendly model map from a Prisma generated client.
 - Model DB table name (`@@map`) as `dbName`
 - Field DB column name (`@map`) as `dbName`
 - Enum values (ordered), with stored DB values (`@map` on members) as `valueDbNames`
-- Field default (`@default`) as `default`: `{ kind: 'literal', value }` for a value stored as written (enum member, string, number, boolean, list), `{ kind: 'generated', expression }` for a function the database or Prisma evaluates (`now()`, `uuid()`, `dbgenerated(...)`, `autoincrement()`)
+- Field default (`@default`) as `default`: `{ kind: 'literal', value }` for a value stored as written (enum member, string, number, boolean, list; a Json default parsed to its value; BigInt/Decimal kept as exact text), `{ kind: 'generated', expression }` for a function the database or Prisma evaluates (`now()`, `uuid()`, `dbgenerated(...)`, `autoincrement()`) or a Bytes value; generated defaults are never injected
 
 It supports both Prisma client layouts:
 - Prisma v7: parse generated `internal/class.ts`

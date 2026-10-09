@@ -47,10 +47,10 @@ export const parseFieldModifiers = (schema: string): Map<string, Map<string, Fie
       const match = line.match(/^(\w+)\s+([A-Za-z_]\w*)(?:\([^)]*\))?(\?)?(\[\])?\s*(.*)?$/);
       if (!match) continue;
 
-      const [, fieldName, , optional, list] = match;
+      const [, fieldName, typeName, optional, list] = match;
       const rest = match[5] ?? '';
       const dbName = matchMapAttribute(rest);
-      const fieldDefault = matchDefaultAttribute(rest);
+      const fieldDefault = matchDefaultAttribute(rest, typeName);
       fieldMods.set(fieldName, {
         isList: !!list,
         isRequired: !optional,
