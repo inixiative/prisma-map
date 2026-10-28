@@ -129,6 +129,47 @@ model Example {
 });
 
 describe('parseSchemaText — relation fields', () => {
+  it('names each relation, so two relations to one model pair with the right back-relation', () => {
+    const schema = `
+model Inquiry {
+  id           String  @id
+  sourceUserId String?
+  targetUserId String?
+  sourceUser   User?   @relation("InquirySource", fields: [sourceUserId], references: [id])
+  targetUser   User?   @relation(name: "InquiryTarget", fields: [targetUserId], references: [id])
+}
+
+model User {
+  id                String    @id
+  inquiriesSent     Inquiry[] @relation("InquirySource")
+  inquiriesReceived Inquiry[] @relation( name: "InquiryTarget")
+}
+`;
+    const { Inquiry, User } = parseSchemaText(schema);
+    expect(Inquiry.fields.sourceUser).toMatchObject({ relationName: 'InquirySource' });
+    expect(Inquiry.fields.targetUser).toMatchObject({ relationName: 'InquiryTarget' });
+    expect(User.fields.inquiriesSent).toMatchObject({ relationName: 'InquirySource' });
+    expect(User.fields.inquiriesReceived).toMatchObject({ relationName: 'InquiryTarget' });
+  });
+
+  it("gives an unnamed relation Prisma's default name: the two models sorted, joined by To", () => {
+    const schema = `
+model Zebra {
+  id       String @id
+  appleId  String
+  apple    Apple  @relation(fields: [appleId], references: [id])
+}
+
+model Apple {
+  id     String  @id
+  zebras Zebra[]
+}
+`;
+    const { Zebra, Apple } = parseSchemaText(schema);
+    expect(Zebra.fields.apple).toMatchObject({ relationName: 'AppleToZebra' });
+    expect(Apple.fields.zebras).toMatchObject({ relationName: 'AppleToZebra' });
+  });
+
   it('parses forward relation with FK info', () => {
     const schema = `
 model Post {
@@ -148,6 +189,7 @@ model User {
       type: 'User',
       isList: false,
       isRequired: true,
+      relationName: 'PostToUser',
       fromFields: ['authorId'],
       toFields: ['id'],
     });
@@ -172,6 +214,7 @@ model User {
       type: 'Post',
       isList: true,
       isRequired: true,
+      relationName: 'PostToUser',
       fromFields: [],
       toFields: [],
     });
