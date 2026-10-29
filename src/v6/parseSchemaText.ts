@@ -77,6 +77,15 @@ export const parseSchemaText = (schema: string): PrismaMap => {
   return map;
 };
 
+// `@relation("Name", …)` or `@relation(name: "Name", …)`.
+const matchRelationName = (rest: string): string | undefined =>
+  rest.match(/@relation\s*\(\s*(?:name\s*:\s*)?"([^"]+)"/)?.[1];
+
+// Prisma's name for an unnamed relation: the two model names, sorted, joined by `To`.
+// The v7 builder reads the same value from the runtime data model.
+const defaultRelationName = (modelName: string, typeName: string): string =>
+  [modelName, typeName].sort().join('To');
+
 const parseFieldLine = (
   rawLine: string,
   modelName: string,
@@ -114,6 +123,7 @@ const parseFieldLine = (
       type: typeName,
       isList,
       isRequired,
+      relationName: matchRelationName(rest) ?? defaultRelationName(modelName, typeName),
       fromFields: fkMapping?.fields ?? [],
       toFields: fkMapping?.references ?? [],
     };
