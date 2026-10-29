@@ -1,4 +1,5 @@
 export { parseTagClasses } from './annotations';
+export { getColumns, pickColumns } from './columns';
 export {
   columnName,
   hasColumn,

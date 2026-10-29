@@ -183,7 +183,9 @@ Root exports:
 import {
   buildPrismaMapV6,
   buildPrismaMapV7,
+  getColumns,
   getRelations,
+  pickColumns,
   relationForeignKey,
   parseTagClasses,
   type PrismaMap,
@@ -204,6 +206,22 @@ Version-specific exports:
 ```ts
 import { buildPrismaMapV7, parseRuntimeDataModel, parseInlineSchema, parseRelationFks, parseEnumValues, parseSchemaStructure } from '@inixiative/prisma-map/v7';
 import { buildPrismaMapV6, parseSchemaText, buildFromSchemaFile } from '@inixiative/prisma-map/v6';
+```
+
+## Columns
+
+`getColumns(map, modelName)` lists a model's column field names (scalar and enum
+fields). `pickColumns(map, modelName, row)` keeps only those keys of a row, so a
+write result carrying `include`d relations reduces to the record itself.
+
+```ts
+import { getColumns, pickColumns } from '@inixiative/prisma-map';
+
+getColumns(map, 'User');
+// ['id', 'role']
+
+pickColumns(map, 'User', { id: 'u1', role: 'ADMIN', posts: [{ id: 'p1' }] });
+// { id: 'u1', role: 'ADMIN' }
 ```
 
 ## Relation Traversal
