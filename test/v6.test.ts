@@ -721,3 +721,43 @@ model BrandMissions {
     expect(storedValue(typeName, 'UNMAPPED') as string).toBe('UNMAPPED'); // unmapped
   });
 });
+
+describe('parseSchemaText: /// annotations, the same as v7', () => {
+  const schema = `
+/// @tree(root: true)
+model Request {
+  id      String  @id
+  brandId String
+  /// @permissions(hydrate: false)
+  workflow Workflow? @relation(fields: [workflowId], references: [id])
+  workflowId String?
+  brand   Brand   @relation(fields: [brandId], references: [id])
+
+  /// @search(on: [brandId])
+  @@index([brandId])
+}
+
+model Brand {
+  id String @id
+}
+
+model Workflow {
+  id String @id
+}
+`;
+  const map = parseSchemaText(schema);
+
+  it('puts a field’s tag classes on the field', () => {
+    expect(map.Request.fields.workflow).toMatchObject({
+      annotations: { permissions: { hydrate: false } },
+    });
+    expect(map.Request.fields.brand).not.toHaveProperty('annotations');
+  });
+
+  it('puts the model’s and the index’s tag classes on the model', () => {
+    expect(map.Request.annotations).toEqual({ tree: { root: true } });
+    expect(map.Request.indexes).toEqual([
+      { kind: 'index', fields: ['brandId'], annotations: { search: { on: ['brandId'] } } },
+    ]);
+  });
+});

@@ -15,13 +15,15 @@ import type {
 } from '../types';
 import { parseEnumValues } from '../v7/parseEnumValues';
 import { parseRelationFks } from '../v7/relationFks';
+import { parseSchemaStructure } from '../v7/schemaStructure';
 
 /**
  * Parse a Prisma schema string into a PrismaMap.
  *
  * Classifies fields as scalar/enum/object by scanning all model and enum
  * declarations first, then parsing each model's fields line by line.
- * FK info is extracted via the same @relation parser used for v7.
+ * FK info is extracted via the same @relation parser used for v7, and `///` doc-comment
+ * annotations (model, field and index) via the same structure parser.
  */
 export const parseSchemaText = (schema: string): PrismaMap => {
   const modelNames = new Set<string>();
@@ -32,6 +34,7 @@ export const parseSchemaText = (schema: string): PrismaMap => {
 
   const relationFks = parseRelationFks(schema);
   const enumValues = parseEnumValues(schema);
+  const structure = parseSchemaStructure(schema);
   const map: PrismaMap = {};
 
   for (const modelMatch of schema.matchAll(/^\s*model\s+(\w+)\s*\{([\s\S]*?)^\s*\}/gm)) {
@@ -48,7 +51,9 @@ export const parseSchemaText = (schema: string): PrismaMap => {
         relationFks,
         enumValues,
       );
-      if (parsed) fields[parsed.name] = parsed.field;
+      if (!parsed) continue;
+      const annotations = structure.get(modelName)?.fields.get(parsed.name);
+      fields[parsed.name] = annotations ? { ...parsed.field, annotations } : parsed.field;
     }
 
     // Mark fields that are part of a composite PK (@@id([field1, field2]))
@@ -71,7 +76,13 @@ export const parseSchemaText = (schema: string): PrismaMap => {
       const match = matchModelMapAttribute(stripLineComment(bodyLine).trim());
       if (match !== undefined) dbName = match;
     }
-    map[modelName] = { dbName, fields } satisfies ModelEntry;
+    const modelStructure = structure.get(modelName);
+    map[modelName] = {
+      dbName,
+      fields,
+      ...(modelStructure?.indexes.length ? { indexes: modelStructure.indexes } : {}),
+      ...(modelStructure?.annotations ? { annotations: modelStructure.annotations } : {}),
+    } satisfies ModelEntry;
   }
 
   return map;

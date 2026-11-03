@@ -251,9 +251,10 @@ you want typed accessors.
 
 ## Annotation DSL (`/// @tagClass(key: value)`)
 
-Prisma rejects custom attributes, but preserves `///` doc comments into the
-generated client's `inlineSchema`. prisma-map parses a small, forward-looking DSL
-out of those comments and records it under `annotations`, without assigning the tags any meaning.
+Prisma rejects custom attributes, but preserves `///` doc comments: into the
+generated client's `inlineSchema` (v7) and the `schema.prisma` it copies (v6). prisma-map parses a
+small, forward-looking DSL out of those comments, the same way for both, and records it under
+`annotations`, without assigning the tags any meaning.
 
 ```prisma
 model Category {
