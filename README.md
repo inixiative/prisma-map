@@ -1,6 +1,8 @@
 # @inixiative/prisma-map
 
-Extract a structured, runtime-friendly model map from a Prisma generated client.
+> One of the [inixiative](https://www.inixiative.com) building blocks. Stop rediscovering what you need to build. See [all the projects](https://github.com/inixiative).
+
+Reads the Prisma client you already generate and gives you its models, fields, relations and foreign keys as one plain object you can use at runtime. You don't add a Prisma generator or parse the DMMF yourself. The map keys everything by its Prisma name and records the database name wherever `@map` / `@@map` changes it, so code that writes SQL resolves identifiers through `tableName` / `columnName` / `storedValue` instead of guessing. `@inixiative/permissions` walks relations through this map, and `@inixiative/json-rules` reads it as a field map.
 
 `@inixiative/prisma-map` builds a `PrismaMap` object that includes:
 - Models and fields
@@ -244,14 +246,14 @@ getRelations(map, 'Inquiry');
 
 `foreignKey` is a bare field name for a single same-named pair, a
 `{ referencedField: localField }` map otherwise, and `null` for back-relations.
-Functions are string-keyed — wrap them with your generated `ModelName` types if
+Functions are string-keyed. Wrap them with your generated `ModelName` types if
 you want typed accessors.
 
 ## Annotation DSL (`/// @tagClass(key: value)`)
 
 Prisma rejects custom attributes, but preserves `///` doc comments into the
 generated client's `inlineSchema`. prisma-map parses a small, forward-looking DSL
-out of those comments and records it — domain-agnostically — under `annotations`.
+out of those comments and records it under `annotations`, without assigning the tags any meaning.
 
 ```prisma
 model Category {
@@ -274,7 +276,7 @@ map.Category.indexes;
 
 - **Grammar:** `@<tagClass>(<key>: <value>, …)`; multiple tag classes per line allowed.
 - **Values:** `true`/`false` → boolean, numerics → number, `"quoted"`/bare words → string, `[a, b]` → array.
-- **Placement:** a `///` run binds to the declaration directly below it — a model, a field, or an index (`@@index` / `@@unique` / `@@id` / `@@fulltext`). A blank line or a plain `//` breaks the binding.
+- **Placement:** a `///` run binds to the declaration directly below it: a model, a field, or an index (`@@index` / `@@unique` / `@@id` / `@@fulltext`). A blank line or a plain `//` breaks the binding.
 - prisma-map only records the bag; what a tag class *means* (e.g. `tree.parent` → "don't auto-recurse up this self-relation") is the consumer's to decide.
 
 ## Auto-Detection Behavior
@@ -300,7 +302,7 @@ v6 detection requires `schema.prisma` and excludes directories that also have `i
 
 ## Resolving DB identifiers
 
-`map.X.fields.y` is a `ModelField` union, so narrow it first — relation fields have
+`map.X.fields.y` is a `ModelField` union, so narrow it first. Relation fields have
 no column and the resolvers reject them at compile time:
 
 ```ts
@@ -343,15 +345,15 @@ eq('missionTypeName', 'SOCIAL_POST'); // compile error — raw Prisma names reje
 
 ## Notes and Limits
 
-- Every key in the map is the **Prisma** name — `map.User`, `map.User.fields.createdAt`,
+- Every key in the map is the **Prisma** name: `map.User`, `map.User.fields.createdAt`,
   and the entries of `values`. `dbName` / `valueDbNames` are the only crossings to the
   physical DB surface, and both are sparse: absent means the Prisma name IS the DB
   identifier. Resolve them with `tableName` / `columnName` / `storedValue` rather than
-  open-coding `?? name` — a missed fallback fails silently (comparing against an unmapped
+  open-coding `?? name`. A missed fallback fails silently (comparing against an unmapped
   enum member selects zero rows instead of erroring).
 - `@@map` on a model is emitted as `ModelEntry.dbName`; `@map` on a scalar/enum field as
   the field's `dbName`; `@map` on enum members as the field's `valueDbNames`.
-- Relation fields never carry `dbName` — they have no column.
+- Relation fields never carry `dbName`; they have no column.
 - Native DB type annotations (for example `@db.Text`) are not emitted.
 - `relationName` is included when available in Prisma runtime metadata.
 
